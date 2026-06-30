@@ -1,0 +1,2 @@
+# SORA
+smart attendance system
