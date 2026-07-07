@@ -29,7 +29,7 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 from database import Base
-from models import user, teacher, class_  # we'll create this file next
+from models import user, teacher, class_, student, session, attendance, leave_request # we'll create this file next
 
 target_metadata = Base.metadata
 
