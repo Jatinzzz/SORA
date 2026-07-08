@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from database import SessionLocal
 from models.user import User
 from models.teacher import Teacher
@@ -57,7 +57,7 @@ def generate_qr(
         data={"session_id": session_obj.id, "type": "qr"},
         expires_minutes=2  # 120 seconds
     )
-    expiry = datetime.utcnow() + timedelta(seconds=120)
+    expiry = datetime.now(timezone.utc) + timedelta(seconds=120)
 
     session_obj.qr_token = token
     session_obj.qr_expiry = expiry

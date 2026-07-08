@@ -45,3 +45,16 @@ class SessionResponse(BaseModel):
 class QRResponse(BaseModel):
     qr_token: str
     qr_expiry: datetime
+
+class QRValidateRequest(BaseModel):
+    qr_token: str
+
+class QRValidateResponse(BaseModel):
+    valid: bool
+    session_id: int
+    class_id: int
+    message: str
+
+class FaceVerifyResponse(BaseModel):
+    verified: bool
+    message: str
