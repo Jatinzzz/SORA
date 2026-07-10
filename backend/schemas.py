@@ -58,3 +58,14 @@ class QRValidateResponse(BaseModel):
 class FaceVerifyResponse(BaseModel):
     verified: bool
     message: str
+
+class MarkAttendanceResponse(BaseModel):
+    status: str
+    face_verified: bool
+    message: str
+
+class ManualAttendanceRequest(BaseModel):
+    session_id: int
+    student_id: int
+    status: str  # "present" or "absent"
+    note: Optional[str] = None

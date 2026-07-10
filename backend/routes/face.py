@@ -24,7 +24,6 @@ def read_image_from_upload(file: UploadFile):
     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
     if img is None:
         raise HTTPException(status_code=400, detail="Invalid image file")
-    print(f"Image shape: {img.shape}")  # TEMP DEBUG
     return img
 
 @router.post("/enroll")
@@ -40,7 +39,9 @@ def enroll_face(
     img = read_image_from_upload(file)
 
     try:
-        embedding_result = DeepFace.represent(img, model_name="Facenet", enforce_detection=False)
+        embedding_result = DeepFace.represent(
+            img, model_name="Facenet", enforce_detection=True, detector_backend="mtcnn"
+        )
     except ValueError:
         raise HTTPException(status_code=400, detail="No face detected in the image. Please try again with a clearer photo.")
 
@@ -66,19 +67,20 @@ def verify_face(
     img = read_image_from_upload(file)
 
     try:
-        live_embedding_result = DeepFace.represent(img, model_name="Facenet", enforce_detection=True)
+        live_embedding_result = DeepFace.represent(
+            img, model_name="Facenet", enforce_detection=True, detector_backend="mtcnn"
+        )
     except ValueError:
         return {"verified": False, "message": "No face detected. Please try again."}
 
     live_embedding = np.array(live_embedding_result[0]["embedding"])
     stored_embedding = np.array(json.loads(student.face_encoding))
 
-    # Cosine similarity - closer to 1 means more similar
     similarity = np.dot(live_embedding, stored_embedding) / (
         np.linalg.norm(live_embedding) * np.linalg.norm(stored_embedding)
     )
 
-    threshold = 0.6  # tunable - lower = stricter matching
+    threshold = 0.6
     is_match = similarity >= threshold
 
     return {
