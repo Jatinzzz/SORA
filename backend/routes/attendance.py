@@ -11,12 +11,13 @@ from jose import JWTError
 from fastapi import UploadFile, File, Form
 from models.student import Student
 from models.attendance import Attendance
+from models.teacher import Teacher
 from deepface import DeepFace
 import numpy as np
 import cv2
 import json
 from schemas import MarkAttendanceResponse
-from models.teacher import Teacher
+
 
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
 
