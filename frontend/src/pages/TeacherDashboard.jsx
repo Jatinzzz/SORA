@@ -11,10 +11,12 @@ export default function TeacherDashboard() {
   const [qrData, setQrData] = useState(null);
   const [students, setStudents] = useState([]);
   const [error, setError] = useState("");
+  const [pendingLeaves, setPendingLeaves] = useState([]);
   const intervalRef = useRef(null);
 
   useEffect(() => {
     fetchClasses();
+    fetchPendingLeaves();
     return () => clearInterval(intervalRef.current);
   }, []);
 
@@ -85,6 +87,25 @@ export default function TeacherDashboard() {
     }
   };
 
+  // ── Leave management functions ──
+  const fetchPendingLeaves = async () => {
+    try {
+      const res = await api.get("/leave/pending");
+      setPendingLeaves(res.data);
+    } catch (err) {
+      console.error("Failed to load leave requests");
+    }
+  };
+
+  const reviewLeave = async (leaveId, status) => {
+    try {
+      await api.put(`/leave/${leaveId}/review`, { status });
+      setPendingLeaves(pendingLeaves.filter((l) => l.id !== leaveId));
+    } catch (err) {
+      alert(err.response?.data?.detail || "Failed to review leave request");
+    }
+  };
+
   return (
     <div style={{ maxWidth: "700px", margin: "50px auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -149,6 +170,34 @@ export default function TeacherDashboard() {
           </table>
         </div>
       )}
+
+      <hr style={{ margin: "30px 0" }} />
+
+      <h3>Pending Leave Requests</h3>
+      {pendingLeaves.length === 0 && <p>No pending leave requests.</p>}
+      <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            <th>Reason</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pendingLeaves.map((l) => (
+            <tr key={l.id}>
+              <td>{l.reason}</td>
+              <td>{l.date_from}</td>
+              <td>{l.date_to}</td>
+              <td>
+                <button onClick={() => reviewLeave(l.id, "approved")}>Approve</button>{" "}
+                <button onClick={() => reviewLeave(l.id, "rejected")}>Reject</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

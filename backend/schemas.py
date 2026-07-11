@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
+from datetime import date
 
 class UserRegister(BaseModel):
     name: str
@@ -69,3 +70,25 @@ class ManualAttendanceRequest(BaseModel):
     student_id: int
     status: str  # "present" or "absent"
     note: Optional[str] = None
+
+
+class LeaveRequestCreate(BaseModel):
+    reason: str
+    date_from: date
+    date_to: date
+
+class LeaveRequestResponse(BaseModel):
+    id: int
+    student_id: int
+    reason: str
+    date_from: date
+    date_to: date
+    status: str
+    reviewed_by: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class LeaveReviewRequest(BaseModel):
+    status: str  # "approved" or "rejected"
