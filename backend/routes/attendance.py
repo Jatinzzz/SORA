@@ -5,7 +5,7 @@ from database import SessionLocal
 from models.user import User
 from models.student import Student
 from models.session import Session as SessionModel
-from schemas import QRValidateRequest, QRValidateResponse
+from schemas import QRValidateRequest, QRValidateResponse, ManualAttendanceRequest, MarkAttendanceResponse
 from utils.security import require_role, decode_access_token
 from jose import JWTError
 from fastapi import UploadFile, File, Form
@@ -16,7 +16,8 @@ from deepface import DeepFace
 import numpy as np
 import cv2
 import json
-from schemas import MarkAttendanceResponse
+from sqlalchemy.exc import IntegrityError
+
 
 
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
@@ -149,11 +150,13 @@ def mark_attendance(
         return {"status": "absent", "face_verified": False, "message": "Face does not match enrolled record. Attendance not marked."}
 
     # ── Step 4: Mark attendance (create or update) ──
+    
     if existing:
         existing.status = "present"
         existing.marked_by = "student_scan"
         existing.face_verified = True
         existing.timestamp = datetime.now(timezone.utc)
+        db.commit()
     else:
         new_attendance = Attendance(
             session_id=session_obj.id,
@@ -163,8 +166,11 @@ def mark_attendance(
             face_verified=True
         )
         db.add(new_attendance)
-
-    db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Attendance already marked for this session")
 
     return {"status": "present", "face_verified": True, "message": "Attendance marked successfully"}
 

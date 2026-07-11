@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 import models
-from routes import auth, admin, sessions, attendance, face
+from routes import auth, admin, sessions, attendance, face, classes
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -18,6 +18,7 @@ app.include_router(admin.router)
 app.include_router(sessions.router)
 app.include_router(attendance.router)
 app.include_router(face.router)
+app.include_router(classes.router)
 
 @app.get("/")
 def read_root():
