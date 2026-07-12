@@ -12,11 +12,14 @@ export default function TeacherDashboard() {
   const [students, setStudents] = useState([]);
   const [error, setError] = useState("");
   const [pendingLeaves, setPendingLeaves] = useState([]);
+  const [unassignedStudents, setUnassignedStudents] = useState([]);
+  const [newClassName, setNewClassName] = useState("");
   const intervalRef = useRef(null);
 
   useEffect(() => {
     fetchClasses();
     fetchPendingLeaves();
+    fetchUnassigned();
     return () => clearInterval(intervalRef.current);
   }, []);
 
@@ -35,6 +38,20 @@ export default function TeacherDashboard() {
       setStudents(res.data);
     } catch (err) {
       setError("Failed to load students");
+    }
+  };
+
+  // ── Class creation ──
+  const createClass = async (e) => {
+    e.preventDefault();
+    if (!newClassName.trim()) return;
+    try {
+      await api.post("/classes/create", { name: newClassName });
+      setNewClassName("");
+      fetchClasses();
+      alert("Class created successfully");
+    } catch (err) {
+      alert(err.response?.data?.detail || "Failed to create class");
     }
   };
 
@@ -87,7 +104,7 @@ export default function TeacherDashboard() {
     }
   };
 
-  // ── Leave management functions ──
+  // ── Leave management ──
   const fetchPendingLeaves = async () => {
     try {
       const res = await api.get("/leave/pending");
@@ -106,6 +123,31 @@ export default function TeacherDashboard() {
     }
   };
 
+  // ── Unassigned students ──
+  const fetchUnassigned = async () => {
+    try {
+      const res = await api.get("/classes/unassigned-students");
+      setUnassignedStudents(res.data);
+    } catch (err) {
+      console.error("Failed to load unassigned students");
+    }
+  };
+
+  const assignStudent = async (studentId, classId) => {
+    if (!classId) {
+      alert("Please select a class first");
+      return;
+    }
+    try {
+      await api.put(`/classes/${classId}/assign-student/${studentId}`);
+      setUnassignedStudents(unassignedStudents.filter((s) => s.student_id !== studentId));
+      fetchClasses();
+      alert("Student assigned successfully");
+    } catch (err) {
+      alert(err.response?.data?.detail || "Failed to assign student");
+    }
+  };
+
   return (
     <div style={{ maxWidth: "700px", margin: "50px auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -115,6 +157,18 @@ export default function TeacherDashboard() {
       <p>Welcome, {user.name}</p>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
+
+      <h3>Create a New Class</h3>
+      <form onSubmit={createClass} style={{ marginBottom: "20px" }}>
+        <input
+          type="text"
+          placeholder="e.g. Computer Science - Section B"
+          value={newClassName}
+          onChange={(e) => setNewClassName(e.target.value)}
+          required
+        />
+        <button type="submit" style={{ marginLeft: "10px" }}>Create Class</button>
+      </form>
 
       {!session ? (
         <div>
@@ -170,6 +224,39 @@ export default function TeacherDashboard() {
           </table>
         </div>
       )}
+
+      <hr style={{ margin: "30px 0" }} />
+
+      <h3>Unassigned Students</h3>
+      {unassignedStudents.length === 0 && <p>No unassigned students.</p>}
+      <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Roll No.</th>
+            <th>Assign to</th>
+          </tr>
+        </thead>
+        <tbody>
+          {unassignedStudents.map((s) => (
+            <tr key={s.student_id}>
+              <td>{s.name}</td>
+              <td>{s.roll_number}</td>
+              <td>
+                <select
+                  onChange={(e) => assignStudent(s.student_id, e.target.value)}
+                  defaultValue=""
+                >
+                  <option value="" disabled>-- Select class --</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       <hr style={{ margin: "30px 0" }} />
 

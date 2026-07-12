@@ -92,3 +92,19 @@ class LeaveRequestResponse(BaseModel):
 
 class LeaveReviewRequest(BaseModel):
     status: str  # "approved" or "rejected"
+
+class VerifyUserRequest(BaseModel):
+    roll_number: Optional[str] = None   # required if role == student
+    class_id: Optional[int] = None      # optional, can assign later
+    department: Optional[str] = None    # required if role == teacher
+
+class ClassCreate(BaseModel):
+    name: str
+
+class ClassResponse(BaseModel):
+    id: int
+    name: str
+    teacher_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True

@@ -4,6 +4,9 @@ from database import SessionLocal
 from models.user import User
 from schemas import UserResponse
 from utils.security import require_role
+from models.student import Student
+from models.teacher import Teacher
+from schemas import VerifyUserRequest
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -18,13 +21,42 @@ def get_db():
 def get_pending_users(db: Session = Depends(get_db), current_user: User = Depends(require_role(["admin"]))):
     return db.query(User).filter(User.is_verified == False).all()
 
+
+
 @router.put("/verify-user/{user_id}", response_model=UserResponse)
-def verify_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role(["admin"]))):
+def verify_user(
+    user_id: int,
+    payload: VerifyUserRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["admin"]))
+):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     user.is_verified = True
+
+    if user.role == "student":
+        existing = db.query(Student).filter(Student.user_id == user.id).first()
+        if not existing:
+            if not payload.roll_number:
+                raise HTTPException(status_code=400, detail="roll_number is required to verify a student")
+            new_student = Student(
+                user_id=user.id,
+                roll_number=payload.roll_number,
+                class_id=payload.class_id
+            )
+            db.add(new_student)
+
+    elif user.role == "teacher":
+        existing = db.query(Teacher).filter(Teacher.user_id == user.id).first()
+        if not existing:
+            new_teacher = Teacher(
+                user_id=user.id,
+                department=payload.department
+            )
+            db.add(new_teacher)
+
     db.commit()
     db.refresh(user)
     return user
