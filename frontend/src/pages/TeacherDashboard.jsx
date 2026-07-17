@@ -13,7 +13,7 @@ export default function TeacherDashboard() {
   const [error, setError] = useState("");
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [unassignedStudents, setUnassignedStudents] = useState([]);
-  const [newClassName, setNewClassName] = useState("");
+  const [classScores, setClassScores] = useState(null);
   const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -41,20 +41,6 @@ export default function TeacherDashboard() {
     }
   };
 
-  // ── Class creation ──
-  const createClass = async (e) => {
-    e.preventDefault();
-    if (!newClassName.trim()) return;
-    try {
-      await api.post("/classes/create", { name: newClassName });
-      setNewClassName("");
-      fetchClasses();
-      alert("Class created successfully");
-    } catch (err) {
-      alert(err.response?.data?.detail || "Failed to create class");
-    }
-  };
-
   const startSession = async () => {
     if (!selectedClass) {
       setError("Please select a class first");
@@ -69,7 +55,7 @@ export default function TeacherDashboard() {
 
       intervalRef.current = setInterval(() => {
         generateQR(res.data.id);
-      }, 120000); // 120 seconds
+      }, 120000);
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to start session");
     }
@@ -89,6 +75,7 @@ export default function TeacherDashboard() {
     setSession(null);
     setQrData(null);
     setStudents([]);
+    if (selectedClass) fetchClassScores(selectedClass); // refresh scores after session ends
   };
 
   const handleManualMark = async (studentId, status) => {
@@ -148,6 +135,25 @@ export default function TeacherDashboard() {
     }
   };
 
+  // ── Attendance scores ──
+  const fetchClassScores = async (classId) => {
+    if (!classId) {
+      setClassScores(null);
+      return;
+    }
+    try {
+      const res = await api.get(`/analytics/class/${classId}`);
+      setClassScores(res.data);
+    } catch (err) {
+      console.error("Failed to load class scores");
+    }
+  };
+
+  const handleClassChange = (classId) => {
+    setSelectedClass(classId);
+    fetchClassScores(classId);
+  };
+
   return (
     <div style={{ maxWidth: "700px", margin: "50px auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -158,22 +164,10 @@ export default function TeacherDashboard() {
 
       {error && <p style={{ color: "red" }}>{error}</p>}
 
-      <h3>Create a New Class</h3>
-      <form onSubmit={createClass} style={{ marginBottom: "20px" }}>
-        <input
-          type="text"
-          placeholder="e.g. Computer Science - Section B"
-          value={newClassName}
-          onChange={(e) => setNewClassName(e.target.value)}
-          required
-        />
-        <button type="submit" style={{ marginLeft: "10px" }}>Create Class</button>
-      </form>
-
       {!session ? (
         <div>
           <h3>Start a Session</h3>
-          <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}>
+          <select value={selectedClass} onChange={(e) => handleClassChange(e.target.value)}>
             <option value="">-- Select a class --</option>
             {classes.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -218,6 +212,38 @@ export default function TeacherDashboard() {
                       Mark Absent
                     </button>
                   </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {classScores && (
+        <div style={{ marginTop: "20px" }}>
+          <h3>Attendance Scores — {classScores.class_name}</h3>
+          <p>Total sessions held: {classScores.total_sessions}</p>
+          <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Roll No.</th>
+                <th>Present</th>
+                <th>Absent</th>
+                <th>Percentage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {classScores.students.map((s) => (
+                <tr
+                  key={s.student_id}
+                  style={{ background: s.attendance_percentage < 75 ? "#ffe0e0" : "transparent" }}
+                >
+                  <td>{s.name}</td>
+                  <td>{s.roll_number}</td>
+                  <td>{s.present_count}</td>
+                  <td>{s.absent_count}</td>
+                  <td>{s.attendance_percentage}%</td>
                 </tr>
               ))}
             </tbody>

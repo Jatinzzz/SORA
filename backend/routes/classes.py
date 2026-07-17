@@ -113,3 +113,14 @@ def create_class(
     db.commit()
     db.refresh(new_class)
     return new_class
+
+@router.get("/my-student-info")
+def get_my_student_info(
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(require_role(["student"]))
+):
+    student = db.query(Student).filter(Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+    class_name = student.class_.name if student.class_ else None
+    return {"student_id": student.id, "class_id": student.class_id, "class_name": class_name}

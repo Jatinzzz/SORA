@@ -6,7 +6,7 @@ import api from "../api/axios";
 export default function StudentDashboard() {
   const { user, logout } = useAuth();
   const [qrToken, setQrToken] = useState(null);
-  const [step, setStep] = useState("idle"); // idle -> scanning -> face-capture -> result
+  const [step, setStep] = useState("idle");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -15,7 +15,7 @@ export default function StudentDashboard() {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
-  // ── Leave management state ──
+  // Leave management
   const [showLeaveForm, setShowLeaveForm] = useState(false);
   const [leaveReason, setLeaveReason] = useState("");
   const [leaveFrom, setLeaveFrom] = useState("");
@@ -23,12 +23,15 @@ export default function StudentDashboard() {
   const [myLeaves, setMyLeaves] = useState([]);
   const [leaveMessage, setLeaveMessage] = useState("");
 
-  // ── Load leave requests on mount ──
+  // Attendance score
+  const [myInfo, setMyInfo] = useState(null);
+  const [myScore, setMyScore] = useState(null);
+
   useEffect(() => {
     fetchMyLeaves();
+    fetchMyInfo();
   }, []);
 
-  // ── Start/stop QR scanner whenever step changes to/from "scanning" ──
   useEffect(() => {
     if (step === "scanning") {
       const scanner = new Html5Qrcode("qr-reader");
@@ -41,7 +44,7 @@ export default function StudentDashboard() {
           (decodedText) => {
             handleScanSuccess(decodedText);
           },
-          () => {} // ignore per-frame scan failures
+          () => {}
         )
         .catch(() => {
           setError("Could not start camera. Please allow camera access.");
@@ -60,7 +63,6 @@ export default function StudentDashboard() {
     };
   }, [step]);
 
-  // ── Start front camera whenever step changes to "face-capture" ──
   useEffect(() => {
     if (step === "face-capture") {
       navigator.mediaDevices
@@ -124,6 +126,7 @@ export default function StudentDashboard() {
         });
         setMessage(res.data.message);
         setStep("result");
+        fetchMyScore(); // refresh score after marking attendance
       } catch (err) {
         setMessage("");
         setError(err.response?.data?.detail || "Failed to mark attendance");
@@ -139,7 +142,7 @@ export default function StudentDashboard() {
     setError("");
   };
 
-  // ── Leave management functions ──
+  // ── Leave management ──
   const fetchMyLeaves = async () => {
     try {
       const res = await api.get("/leave/my-requests");
@@ -168,6 +171,34 @@ export default function StudentDashboard() {
     }
   };
 
+  // ── Attendance score ──
+  const fetchMyInfo = async () => {
+    try {
+      const res = await api.get("/classes/my-student-info");
+      setMyInfo(res.data);
+      if (res.data.class_id) {
+        fetchMyScoreWithInfo(res.data.student_id, res.data.class_id);
+      }
+    } catch (err) {
+      console.error("Failed to load student info");
+    }
+  };
+
+  const fetchMyScoreWithInfo = async (studentId, classId) => {
+    try {
+      const res = await api.get(`/analytics/student/${studentId}/class/${classId}`);
+      setMyScore(res.data);
+    } catch (err) {
+      console.error("Failed to load attendance score");
+    }
+  };
+
+  const fetchMyScore = async () => {
+    if (myInfo && myInfo.class_id) {
+      fetchMyScoreWithInfo(myInfo.student_id, myInfo.class_id);
+    }
+  };
+
   return (
     <div style={{ maxWidth: "500px", margin: "50px auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -175,6 +206,19 @@ export default function StudentDashboard() {
         <button onClick={logout}>Logout</button>
       </div>
       <p>Welcome, {user.name}</p>
+
+      {myInfo && myInfo.class_name && (
+        <p style={{ color: "gray" }}>Class: {myInfo.class_name}</p>
+      )}
+
+      {myScore && (
+        <div style={{ background: "#f0f0f0", padding: "15px", marginBottom: "20px", borderRadius: "5px" }}>
+          <h3 style={{ margin: "0 0 5px 0" }}>My Attendance</h3>
+          <p style={{ margin: 0 }}>
+            <strong>{myScore.attendance_percentage}%</strong> ({myScore.present_count} / {myScore.total_sessions} sessions)
+          </p>
+        </div>
+      )}
 
       {error && <p style={{ color: "red" }}>{error}</p>}
 

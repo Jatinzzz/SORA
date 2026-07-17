@@ -108,3 +108,18 @@ class ClassResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class StudentAttendanceScore(BaseModel):
+    student_id: int
+    name: str
+    roll_number: str
+    total_sessions: int
+    present_count: int
+    absent_count: int
+    attendance_percentage: float
+
+class ClassAttendanceScore(BaseModel):
+    class_id: int
+    class_name: str
+    total_sessions: int
+    students: list[StudentAttendanceScore]
