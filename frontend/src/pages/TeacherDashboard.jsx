@@ -1,7 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { 
+  LogOut, 
+  PlayCircle, 
+  Award, 
+  ShieldAlert, 
+  UserPlus,
+  ClipboardList 
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
+import "./TeacherDashboard.css";
 
 export default function TeacherDashboard() {
   const { user, logout } = useAuth();
@@ -14,6 +23,9 @@ export default function TeacherDashboard() {
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [unassignedStudents, setUnassignedStudents] = useState([]);
   const [classScores, setClassScores] = useState(null);
+  
+  // Track current section view ('overview' vs 'unassigned')
+  const [activeTab, setActiveTab] = useState("overview");
   const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -75,7 +87,7 @@ export default function TeacherDashboard() {
     setSession(null);
     setQrData(null);
     setStudents([]);
-    if (selectedClass) fetchClassScores(selectedClass); // refresh scores after session ends
+    if (selectedClass) fetchClassScores(selectedClass);
   };
 
   const handleManualMark = async (studentId, status) => {
@@ -91,7 +103,6 @@ export default function TeacherDashboard() {
     }
   };
 
-  // ── Leave management ──
   const fetchPendingLeaves = async () => {
     try {
       const res = await api.get("/leave/pending");
@@ -110,7 +121,6 @@ export default function TeacherDashboard() {
     }
   };
 
-  // ── Unassigned students ──
   const fetchUnassigned = async () => {
     try {
       const res = await api.get("/classes/unassigned-students");
@@ -135,7 +145,6 @@ export default function TeacherDashboard() {
     }
   };
 
-  // ── Attendance scores ──
   const fetchClassScores = async (classId) => {
     if (!classId) {
       setClassScores(null);
@@ -155,162 +164,268 @@ export default function TeacherDashboard() {
   };
 
   return (
-    <div style={{ maxWidth: "700px", margin: "50px auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h2>Teacher Dashboard</h2>
-        <button onClick={logout}>Logout</button>
-      </div>
-      <p>Welcome, {user.name}</p>
-
-      {error && <p style={{ color: "red" }}>{error}</p>}
-
-      {!session ? (
-        <div>
-          <h3>Start a Session</h3>
-          <select value={selectedClass} onChange={(e) => handleClassChange(e.target.value)}>
-            <option value="">-- Select a class --</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <button onClick={startSession} style={{ marginLeft: "10px" }}>
-            Start Session
+    <div className="dashboard-container">
+      {/* Sidebar Navigation Panel */}
+      <aside className="dashboard-sidebar">
+        <div className="sidebar-brand">
+          <Award className="brand-icon" />
+          <span>SORA</span>
+        </div>
+        <nav className="sidebar-menu">
+          <button 
+            onClick={() => setActiveTab("overview")} 
+            className={`menu-item-btn ${activeTab === "overview" ? "active" : ""}`}
+          >
+            <ClipboardList size={18} /> Overview & Leaves
           </button>
-        </div>
-      ) : (
-        <div>
-          <h3>Session Active</h3>
-          <button onClick={endSession}>End Session</button>
+          <button 
+            onClick={() => setActiveTab("unassigned")} 
+            className={`menu-item-btn ${activeTab === "unassigned" ? "active" : ""}`}
+          >
+            <UserPlus size={18} /> Unassigned Students
+          </button>
+        </nav>
+        <button className="logout-button" onClick={logout}>
+          <LogOut size={18} /> Logout
+        </button>
+      </aside>
 
-          {qrData && (
-            <div style={{ margin: "20px 0" }}>
-              <QRCodeSVG value={qrData.qr_token} size={200} />
-              <p>Expires: {new Date(qrData.qr_expiry).toLocaleTimeString()}</p>
-              <p style={{ fontSize: "12px", color: "gray" }}>Auto-refreshes every 120 seconds</p>
+      {/* Main Layout Area */}
+      <main className="dashboard-content">
+        <header className="content-header">
+          <div>
+            <h1>Teacher Dashboard</h1>
+            <p className="welcome-text">Welcome back</p>
+          </div>
+        </header>
+
+        {error && (
+          <div className="status-banner error">
+            <ShieldAlert size={18} /> {error}
+          </div>
+        )}
+
+        {/* Tab Subview Switcher */}
+        {activeTab === "overview" ? (
+          <div className="overview-page-layout">
+            <div className="dashboard-grid">
+              
+              {/* Session Control Box */}
+              <div className="card action-card">
+                {!session ? (
+                  <div>
+                    <h3>Start a Session</h3>
+                    <p className="action-desc">Select an authorized course partition grid below to roll out live QR captures.</p>
+                    <div className="session-controls-group">
+                      <select 
+                        value={selectedClass} 
+                        onChange={(e) => handleClassChange(e.target.value)}
+                        className="modern-select"
+                      >
+                        <option value="">-- Select a class --</option>
+                        {classes.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                      <button onClick={startSession} className="scan-button">
+                        <PlayCircle size={18} /> Start Session
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="active-session-wrapper">
+                    <div className="session-status-header">
+                      <h3>Session Active</h3>
+                      <button onClick={endSession} className="btn-secondary danger-btn">End Session</button>
+                    </div>
+
+                    {qrData && (
+                      <div className="qr-display-container">
+                        <div className="qr-svg-card">
+                          <QRCodeSVG value={qrData.qr_token} size={180} />
+                        </div>
+                        <div className="qr-metadata">
+                          <p>Expires: <strong>{new Date(qrData.qr_expiry).toLocaleTimeString()}</strong></p>
+                          <span className="refresh-notice">Auto-refreshes every 120 seconds</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <h4>Class Roster</h4>
+                    <div className="table-container text-table">
+                      <table className="modern-table">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Roll No.</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {students.map((s) => (
+                            <tr key={s.student_id}>
+                              <td>{s.name}</td>
+                              <td>{s.roll_number}</td>
+                              <td>
+                                <div className="btn-row">
+                                  <button onClick={() => handleManualMark(s.student_id, "present")} className="table-action-btn present-btn">
+                                    Present
+                                  </button>
+                                  <button onClick={() => handleManualMark(s.student_id, "absent")} className="table-action-btn absent-btn">
+                                    Absent
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Attendance Records Rollbox */}
+              <div className="card score-card">
+                <h3>Attendance Statistics</h3>
+                {classScores ? (
+                  <div>
+                    <div className="score-box-meta">
+                      <p>Class Matrix: <strong>{classScores.class_name}</strong></p>
+                      <div className="stat-pill total">Total Sessions: {classScores.total_sessions}</div>
+                    </div>
+                    <div className="table-container">
+                      <table className="modern-table">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Roll No.</th>
+                            <th>P</th>
+                            <th>A</th>
+                            <th>%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {classScores.students.map((s) => (
+                            <tr 
+                              key={s.student_id} 
+                              className={s.attendance_percentage < 75 ? "alert-row" : ""}
+                            >
+                              <td>{s.name}</td>
+                              <td>{s.roll_number}</td>
+                              <td><span className="text-present">{s.present_count}</span></td>
+                              <td><span className="text-absent">{s.absent_count}</span></td>
+                              <td>
+                                <span className={`status-pill ${s.attendance_percentage < 75 ? "state-rejected" : "state-approved"}`}>
+                                  {s.attendance_percentage}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="empty-notice text-center">Select an active class stream to query cumulative records.</p>
+                )}
+              </div>
             </div>
-          )}
 
-          <h3>Class Roster</h3>
-          <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Roll No.</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((s) => (
-                <tr key={s.student_id}>
-                  <td>{s.name}</td>
-                  <td>{s.roll_number}</td>
-                  <td>
-                    <button onClick={() => handleManualMark(s.student_id, "present")}>
-                      Mark Present
-                    </button>{" "}
-                    <button onClick={() => handleManualMark(s.student_id, "absent")}>
-                      Mark Absent
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            {/* Pending Leave Requests Section */}
+            <section className="card leave-section">
+              <div className="leave-header">
+                <div>
+                  <h3>Pending Leave Requests</h3>
+                  <p className="section-subtitle">Process incoming medical waivers and exception logs submitted by students.</p>
+                </div>
+              </div>
 
-      {classScores && (
-        <div style={{ marginTop: "20px" }}>
-          <h3>Attendance Scores — {classScores.class_name}</h3>
-          <p>Total sessions held: {classScores.total_sessions}</p>
-          <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Roll No.</th>
-                <th>Present</th>
-                <th>Absent</th>
-                <th>Percentage</th>
-              </tr>
-            </thead>
-            <tbody>
-              {classScores.students.map((s) => (
-                <tr
-                  key={s.student_id}
-                  style={{ background: s.attendance_percentage < 75 ? "#ffe0e0" : "transparent" }}
-                >
-                  <td>{s.name}</td>
-                  <td>{s.roll_number}</td>
-                  <td>{s.present_count}</td>
-                  <td>{s.absent_count}</td>
-                  <td>{s.attendance_percentage}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <hr style={{ margin: "30px 0" }} />
-
-      <h3>Unassigned Students</h3>
-      {unassignedStudents.length === 0 && <p>No unassigned students.</p>}
-      <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Roll No.</th>
-            <th>Assign to</th>
-          </tr>
-        </thead>
-        <tbody>
-          {unassignedStudents.map((s) => (
-            <tr key={s.student_id}>
-              <td>{s.name}</td>
-              <td>{s.roll_number}</td>
-              <td>
-                <select
-                  onChange={(e) => assignStudent(s.student_id, e.target.value)}
-                  defaultValue=""
-                >
-                  <option value="" disabled>-- Select class --</option>
-                  {classes.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <hr style={{ margin: "30px 0" }} />
-
-      <h3>Pending Leave Requests</h3>
-      {pendingLeaves.length === 0 && <p>No pending leave requests.</p>}
-      <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th>Reason</th>
-            <th>From</th>
-            <th>To</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pendingLeaves.map((l) => (
-            <tr key={l.id}>
-              <td>{l.reason}</td>
-              <td>{l.date_from}</td>
-              <td>{l.date_to}</td>
-              <td>
-                <button onClick={() => reviewLeave(l.id, "approved")}>Approve</button>{" "}
-                <button onClick={() => reviewLeave(l.id, "rejected")}>Reject</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              <div className="table-container">
+                {pendingLeaves.length === 0 ? (
+                  <p className="empty-notice">No leave exceptions waiting for approval logs.</p>
+                ) : (
+                  <table className="modern-table">
+                    <thead>
+                      <tr>
+                        <th>Reason</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingLeaves.map((l) => (
+                        <tr key={l.id}>
+                          <td><strong>{l.reason}</strong></td>
+                          <td>{l.date_from}</td>
+                          <td>{l.date_to}</td>
+                          <td>
+                            <div className="btn-row">
+                              <button onClick={() => reviewLeave(l.id, "approved")} className="table-action-btn present-btn">
+                                Approve
+                              </button>
+                              <button onClick={() => reviewLeave(l.id, "rejected")} className="table-action-btn absent-btn">
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </section>
+          </div>
+        ) : (
+          /* Separate Isolation Subview Section for Unassigned Students */
+          <div className="card leave-section animate-fade-in">
+            <div className="leave-header">
+              <div>
+                <h3>Unassigned Students Pipeline</h3>
+                <p className="section-subtitle">Route newly enrolled student profiles to their respective academic classrooms.</p>
+              </div>
+            </div>
+            
+            <div className="table-container">
+              {unassignedStudents.length === 0 ? (
+                <p className="empty-notice">Clear pipeline! All student accounts are linked to a class structure.</p>
+              ) : (
+                <table className="modern-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Roll No.</th>
+                      <th>Assign to Target Class</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unassignedStudents.map((s) => (
+                      <tr key={s.student_id}>
+                        <td><strong>{s.name}</strong></td>
+                        <td>{s.roll_number}</td>
+                        <td>
+                          <select
+                            onChange={(e) => assignStudent(s.student_id, e.target.value)}
+                            defaultValue=""
+                            className="modern-select table-inline-select"
+                          >
+                            <option value="" disabled>-- Select class --</option>
+                            {classes.map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

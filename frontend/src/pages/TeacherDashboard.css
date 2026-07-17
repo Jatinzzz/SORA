@@ -1,0 +1,458 @@
+:root {
+  --primary: #2f5fdb;
+  --primary-hover: #1e4bb3;
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --text-dark: #1e293b;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --success: #10b981;
+  --danger: #ef4444;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-dark);
+}
+
+/* Master Layout Framework */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar Component Styling */
+.dashboard-sidebar {
+  width: 260px;
+  background-color: #0f172a; /* Slightly darker shift for the teacher panel variant */
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  position: fixed;
+  height: 100vh;
+  box-sizing: border-box;
+  z-index: 10;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 32px;
+  color: #fff;
+}
+
+.brand-icon {
+  color: #38bdf8;
+}
+
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-grow: 1;
+}
+
+/* Tab button conversions styling matching student list structures */
+.menu-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-size: 0.95rem;
+  width: 100%;
+  cursor: pointer;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.menu-item-btn:hover, .menu-item-btn.active {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: transparent;
+  border: 1px solid #475569;
+  color: #f1f5f9;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.logout-button:hover {
+  background-color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* Core Workspace Content Configurations */
+.dashboard-content {
+  margin-left: 260px;
+  flex-grow: 1;
+  padding: 40px;
+  max-width: 1400px;
+  box-sizing: border-box;
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 32px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 20px;
+}
+
+.content-header h1 {
+  margin: 0;
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.welcome-text {
+  margin: 4px 0 0 0;
+  color: var(--text-muted);
+}
+
+.welcome-text span {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+/* Two-column layout matching Student configuration */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Card Foundations */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.card h3 {
+  margin: 0 0 16px 0;
+  font-size: 1.15rem;
+  color: var(--text-dark);
+}
+
+.card h4 {
+  margin: 24px 0 12px 0;
+  font-size: 1rem;
+  color: var(--text-dark);
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+}
+
+/* Session controls layout elements */
+.session-controls-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.modern-select {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: #fff;
+  color: var(--text-dark);
+  font-size: 0.95rem;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modern-select:focus {
+  border-color: var(--primary);
+}
+
+.table-inline-select {
+  padding: 8px;
+  font-size: 0.85rem;
+  max-width: 200px;
+}
+
+/* Active QR Box components Layout */
+.active-session-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.session-status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.session-status-header h3 {
+  margin: 0;
+  color: var(--success);
+}
+
+.qr-display-container {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.qr-svg-card {
+  background: white;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  display: flex;
+}
+
+.qr-metadata p {
+  margin: 0 0 6px 0;
+  font-size: 0.95rem;
+}
+
+.refresh-notice {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: block;
+}
+
+/* Score Box Metadata Tags */
+.score-box-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.score-box-meta p {
+  margin: 0;
+}
+
+/* Master Styling Action Buttons */
+.scan-button {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  transition: background 0.2s;
+}
+
+.scan-button:hover {
+  background: var(--primary-hover);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-secondary:hover {
+  background: #f1f5f9;
+}
+
+.danger-btn {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.danger-btn:hover {
+  background-color: var(--danger);
+  color: white;
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* Table Actions Button Sets */
+.table-action-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.present-btn {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.present-btn:hover {
+  background-color: #a7f3d0;
+}
+
+.absent-btn {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.absent-btn:hover {
+  background-color: #fecaca;
+}
+
+/* Status Notifications Banners */
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+.status-banner.error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Leave Panel Section Shared Setup */
+.leave-section {
+  margin-top: 8px;
+}
+
+.leave-header {
+  margin-bottom: 20px;
+}
+
+.leave-header h3 {
+  margin: 0;
+}
+
+.section-subtitle {
+  margin: 4px 0 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Tables System Configurations */
+.table-container {
+  overflow-x: auto;
+  max-height: 400px;
+}
+
+.modern-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.modern-table th {
+  background: #f1f5f9;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 12px;
+  border-bottom: 2px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.modern-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-dark);
+}
+
+.alert-row {
+  background-color: #fff5f5;
+}
+
+.text-present {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.text-absent {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.empty-notice {
+  color: var(--text-muted);
+  padding: 24px 0;
+  font-style: italic;
+  margin: 0;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.state-approved { background-color: #d1fae5; color: #065f46; }
+.state-rejected { background-color: #fee2e2; color: #991b1b; }
+
+.action-desc {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 0;
+}
+
+/* Micro animations rules */
+.animate-fade-in {
+  animation: fadeIn 0.25s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
