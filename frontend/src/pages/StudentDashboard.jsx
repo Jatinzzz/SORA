@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
+import "./StudentDashboard.css";
 
 export default function StudentDashboard() {
   const { user, logout } = useAuth();
@@ -200,7 +201,7 @@ export default function StudentDashboard() {
   };
 
   return (
-    <div style={{ maxWidth: "500px", margin: "50px auto" }}>
+     <div className="student-dashboard" style={{ maxWidth: "500px", margin: "50px auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h2>Student Dashboard</h2>
         <button onClick={logout}>Logout</button>
@@ -212,7 +213,7 @@ export default function StudentDashboard() {
       )}
 
       {myScore && (
-        <div style={{ background: "#f0f0f0", padding: "15px", marginBottom: "20px", borderRadius: "5px" }}>
+        <div className="score-box" style={{ padding: "15px", marginBottom: "20px", borderRadius: "5px" }}>
           <h3 style={{ margin: "0 0 5px 0" }}>My Attendance</h3>
           <p style={{ margin: 0 }}>
             <strong>{myScore.attendance_percentage}%</strong> ({myScore.present_count} / {myScore.total_sessions} sessions)
@@ -223,7 +224,7 @@ export default function StudentDashboard() {
       {error && <p style={{ color: "red" }}>{error}</p>}
 
       {step === "idle" && (
-        <button onClick={startScan}>Scan QR to Mark Attendance</button>
+        <button className="scan-button" onClick={startScan}>Scan QR to Mark Attendance</button>
       )}
 
       {step === "scanning" && (

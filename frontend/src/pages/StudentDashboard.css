@@ -1,0 +1,27 @@
+/* Page-specific accent for the Student Dashboard */
+.student-dashboard {
+  border-top: 4px solid #2f5fdb;
+}
+
+.student-dashboard h2 {
+  color: #2f5fdb;
+}
+
+/* Style the "My Attendance" score box distinctly on this page */
+.student-dashboard .score-box {
+  background: linear-gradient(135deg, #eaf0ff, #f7f9ff);
+  border: 1px solid #d6e0ff;
+}
+
+/* Make the primary "Scan QR" button stand out */
+.student-dashboard .scan-button {
+  background: #2f5fdb;
+  color: white;
+  font-size: 1rem;
+  padding: 12px 24px;
+  width: 100%;
+}
+
+.student-dashboard .scan-button:hover {
+  background: #244aad;
+}
