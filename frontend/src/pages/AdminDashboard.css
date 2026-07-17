@@ -1,4 +1,4 @@
-/* Dashboard container sizing */
+/* Container Layout Setup */
 .dashboard-container {
   display: flex;
   min-height: 100vh;
@@ -7,7 +7,7 @@
   color: #1e293b;
 }
 
-/* Sidebar Styling */
+/* Sidebar Navigation Drawer Panels */
 .dashboard-sidebar {
   width: 260px;
   background-color: #0f172a;
@@ -89,7 +89,7 @@
   color: #ffffff;
 }
 
-/* Main Workspace Content */
+/* Content Frame Spaces */
 .dashboard-content {
   flex: 1;
   padding: 40px;
@@ -132,7 +132,7 @@
   color: #991b1b;
 }
 
-/* System Messages */
+/* Status Notifications Components */
 .status-banner {
   display: flex;
   align-items: center;
@@ -150,7 +150,7 @@
   border: 1px solid #fca5a5;
 }
 
-/* Base Box / Card Styles */
+/* Dashboard Interface Cards */
 .card {
   background-color: #ffffff;
   border-radius: 12px;
@@ -184,7 +184,7 @@
   margin: 0;
 }
 
-/* Dynamic Modern Table */
+/* Roster Tables Component */
 .table-container {
   overflow-x: auto;
   margin-top: 15px;
@@ -216,7 +216,7 @@
   background-color: #f8fafc;
 }
 
-/* Badges & Pills */
+/* Metadata Role Tags */
 .status-pill {
   display: inline-block;
   padding: 4px 10px;
@@ -236,7 +236,7 @@
   color: #6b21a8;
 }
 
-/* Control Buttons */
+/* Table Actions Custom Controls */
 .table-action-btn {
   padding: 8px 16px;
   border-radius: 6px;
@@ -265,7 +265,6 @@
   background-color: #475569;
 }
 
-/* Interactive Overlay Verification Box */
 .verify-form-card {
   border-left: 4px solid #38bdf8;
   margin-top: 24px;
@@ -277,7 +276,7 @@
   margin-bottom: 20px;
 }
 
-/* Clean Modular Forms */
+/* Input Fields & Forms */
 .leave-form {
   display: flex;
   flex-direction: column;
@@ -359,7 +358,7 @@
   background-color: #e2e8f0;
 }
 
-/* System Settings Dashboard Subview Grid */
+/* Config Grid Layout */
 .config-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -391,7 +390,7 @@
   color: #10b981 !important;
 }
 
-/* UI Utilities */
+/* Utilities */
 .loading-text, .empty-notice {
   text-align: center;
   color: #64748b;
@@ -400,7 +399,7 @@
   margin: 0;
 }
 
-/* View transitions animate */
+/* Smooth Fade transitions */
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
 }

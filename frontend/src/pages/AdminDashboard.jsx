@@ -1,4 +1,11 @@
 import { useState, useEffect } from "react";
+import { 
+  LogOut, 
+  Award, 
+  ShieldAlert, 
+  UserCheck, 
+  Settings 
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
 import "./AdminDashboard.css";
@@ -12,6 +19,9 @@ export default function AdminDashboard() {
   const [rollNumber, setRollNumber] = useState("");
   const [classId, setClassId] = useState("");
   const [department, setDepartment] = useState("");
+
+  // Track active subview ('approvals' vs 'system-logs')
+  const [activeTab, setActiveTab] = useState("approvals");
 
   const fetchPendingUsers = async () => {
     try {
@@ -66,88 +76,189 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div style={{ maxWidth: "700px", margin: "50px auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h2>Admin Dashboard</h2>
-        <button onClick={logout}>Logout</button>
-      </div>
-      <p>Welcome, {user.name}</p>
+    <div className="dashboard-container">
+      {/* Sidebar Navigation Panel */}
+      <aside className="dashboard-sidebar">
+        <div className="sidebar-brand">
+          <Award className="brand-icon" />
+          <span>SORA</span>
+        </div>
+        <nav className="sidebar-menu">
+          <button 
+            onClick={() => setActiveTab("approvals")} 
+            className={`menu-item-btn ${activeTab === "approvals" ? "active" : ""}`}
+          >
+            <UserCheck size={18} /> Approvals
+          </button>
+          <button 
+            onClick={() => setActiveTab("system-logs")} 
+            className={`menu-item-btn ${activeTab === "system-logs" ? "active" : ""}`}
+          >
+            <Settings size={18} /> System Config
+          </button>
+        </nav>
+        <button className="logout-button" onClick={logout}>
+          <LogOut size={18} /> Logout
+        </button>
+      </aside>
 
-      <h3>Pending User Approvals</h3>
-      {loading && <p>Loading...</p>}
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {!loading && pendingUsers.length === 0 && <p>No pending users.</p>}
+      {/* Main Layout Area */}
+      <main className="dashboard-content">
+        <header className="content-header">
+          <div>
+            <h1>Admin Dashboard</h1>
+            <p className="welcome-text">Welcome back</p>
+          </div>
+          <div className="class-badge admin-badge">Role: System Admin</div>
+        </header>
 
-      <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pendingUsers.map((u) => (
-            <>
-              <tr key={u.id}>
-                <td>{u.name}</td>
-                <td>{u.email}</td>
-                <td>{u.role}</td>
-                <td>
-                  {verifyingUserId === u.id ? (
-                    <button onClick={cancelVerify}>Cancel</button>
-                  ) : (
-                    <button onClick={() => openVerifyForm(u.id)}>Approve</button>
-                  )}
-                </td>
-              </tr>
-              {verifyingUserId === u.id && (
-                <tr>
-                  <td colSpan="4" style={{ background: "#f5f5f5", padding: "15px" }}>
-                    <form onSubmit={(e) => submitVerify(e, u.role)}>
-                      {u.role === "student" && (
-                        <>
-                          <div>
-                            <label>Roll Number (required): </label>
-                            <input
-                              type="text"
-                              value={rollNumber}
-                              onChange={(e) => setRollNumber(e.target.value)}
-                              required
-                            />
-                          </div>
-                          <div style={{ marginTop: "8px" }}>
-                            <label>Class ID (optional): </label>
-                            <input
-                              type="number"
-                              value={classId}
-                              onChange={(e) => setClassId(e.target.value)}
-                            />
-                          </div>
-                        </>
-                      )}
-                      {u.role === "teacher" && (
-                        <div>
-                          <label>Department (optional): </label>
-                          <input
-                            type="text"
-                            value={department}
-                            onChange={(e) => setDepartment(e.target.value)}
-                          />
-                        </div>
-                      )}
-                      <button type="submit" style={{ marginTop: "10px" }}>
-                        Confirm Approval
-                      </button>
-                    </form>
-                  </td>
-                </tr>
+        {error && (
+          <div className="status-banner error">
+            <ShieldAlert size={18} /> {error}
+          </div>
+        )}
+
+        {activeTab === "approvals" ? (
+          <div className="overview-page-layout animate-fade-in">
+            <section className="card leave-section">
+              <div className="leave-header">
+                <div>
+                  <h3>Pending User Registrations</h3>
+                  <p className="section-subtitle">Assign identifiers and verify credentials for pending teacher and student sign-ups.</p>
+                </div>
+              </div>
+
+              {loading ? (
+                <p className="loading-text">Querying authentication systems...</p>
+              ) : pendingUsers.length === 0 ? (
+                <p className="empty-notice">No registration approvals waiting in the queue.</p>
+              ) : (
+                <div className="table-container">
+                  <table className="modern-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingUsers.map((u) => (
+                        <tr key={u.id}>
+                          <td><strong>{u.name}</strong></td>
+                          <td>{u.email}</td>
+                          <td>
+                            <span className={`status-pill role-${u.role}`}>
+                              {u.role}
+                            </span>
+                          </td>
+                          <td>
+                            {verifyingUserId === u.id ? (
+                              <button onClick={cancelVerify} className="table-action-btn cancel-btn">
+                                Cancel
+                              </button>
+                            ) : (
+                              <button onClick={() => openVerifyForm(u.id)} className="table-action-btn approve-btn">
+                                Approve
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
-            </>
-          ))}
-        </tbody>
-      </table>
+            </section>
+
+            {/* Inline verification details section */}
+            {verifyingUserId && (
+              <div className="card action-card verify-form-card animate-fade-in">
+                <h3>Verification Criteria Setup</h3>
+                <p className="action-desc">
+                  Input unique credential mappings for:{" "}
+                  <strong>{pendingUsers.find((u) => u.id === verifyingUserId)?.name}</strong>
+                </p>
+                <form 
+                  onSubmit={(e) => 
+                    submitVerify(
+                      e, 
+                      pendingUsers.find((u) => u.id === verifyingUserId)?.role
+                    )
+                  }
+                  className="leave-form"
+                >
+                  {pendingUsers.find((u) => u.id === verifyingUserId)?.role === "student" && (
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label>Roll Number <span className="req-star">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="e.g., ENG2026-88"
+                          value={rollNumber}
+                          onChange={(e) => setRollNumber(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Class ID (Optional)</label>
+                        <input
+                          type="number"
+                          placeholder="e.g., 101"
+                          value={classId}
+                          onChange={(e) => setClassId(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {pendingUsers.find((u) => u.id === verifyingUserId)?.role === "teacher" && (
+                    <div className="form-group">
+                      <label>Department Designation (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Department of Computing"
+                        value={department}
+                        onChange={(e) => setDepartment(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div className="form-footer">
+                    <button type="submit" className="scan-button" style={{ maxWidth: "250px" }}>
+                      Confirm Approval
+                    </button>
+                    <button type="button" onClick={cancelVerify} className="btn-secondary">
+                      Discard
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Separate System Config Subview Page */
+          <div className="card leave-section animate-fade-in">
+            <div className="leave-header">
+              <div>
+                <h3>System Configuration</h3>
+                <p className="section-subtitle">Global administrative settings and core portal metrics.</p>
+              </div>
+            </div>
+            <div className="config-grid">
+              <div className="config-card-mini">
+                <h4>SORA Portal Version</h4>
+                <p>v2.4.0-production</p>
+              </div>
+              <div className="config-card-mini">
+                <h4>System Integrity</h4>
+                <p className="text-present">All nodes operational</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
