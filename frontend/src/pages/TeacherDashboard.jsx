@@ -2,9 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { 
   LogOut, 
-  CalendarCheck, 
   PlayCircle, 
-  Users, 
   Award, 
   ShieldAlert, 
   UserPlus,
@@ -171,7 +169,7 @@ export default function TeacherDashboard() {
       <aside className="dashboard-sidebar">
         <div className="sidebar-brand">
           <Award className="brand-icon" />
-          <span>EduPortal</span>
+          <span>SORA</span>
         </div>
         <nav className="sidebar-menu">
           <button 
@@ -197,7 +195,7 @@ export default function TeacherDashboard() {
         <header className="content-header">
           <div>
             <h1>Teacher Dashboard</h1>
-            <p className="welcome-text">Welcome back, <span>{user.name}</span></p>
+            <p className="welcome-text">Welcome back</p>
           </div>
         </header>
 
@@ -334,7 +332,7 @@ export default function TeacherDashboard() {
               </div>
             </div>
 
-            {/* Pending Leave Requests Section (Placed on the same page below the main grid cards) */}
+            {/* Pending Leave Requests Section */}
             <section className="card leave-section">
               <div className="leave-header">
                 <div>
