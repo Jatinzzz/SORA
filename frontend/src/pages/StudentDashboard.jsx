@@ -202,7 +202,6 @@ export default function StudentDashboard() {
     }
   };
 
-  // Navigation anchor link handler for smooth internal dashboard jumping
   const navigateToSection = (e, id) => {
     e.preventDefault();
     const element = document.getElementById(id);
@@ -211,7 +210,6 @@ export default function StudentDashboard() {
     }
   };
 
-  // Prepare chart data dynamically based on scores
   const presentCount = myScore?.present_count || 0;
   const totalSessions = myScore?.total_sessions || 0;
   const absentCount = Math.max(0, totalSessions - presentCount);
@@ -227,7 +225,7 @@ export default function StudentDashboard() {
       <aside className="dashboard-sidebar">
         <div className="sidebar-brand">
           <Award className="brand-icon" />
-          <span>EduPortal</span>
+          <span>SORA</span>
         </div>
         <nav className="sidebar-menu">
           <a href="#overview" onClick={(e) => navigateToSection(e, "overview")} className="menu-item active">
@@ -247,7 +245,7 @@ export default function StudentDashboard() {
         <header className="content-header" id="overview">
           <div>
             <h1>Student Dashboard</h1>
-            <p className="welcome-text">Welcome back, <span>{user.name}</span></p>
+            <p className="welcome-text">Welcome back</p>
           </div>
           {myInfo?.class_name && (
             <div className="class-badge">Class: {myInfo.class_name}</div>
