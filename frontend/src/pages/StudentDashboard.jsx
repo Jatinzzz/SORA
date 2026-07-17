@@ -30,6 +30,9 @@ export default function StudentDashboard() {
   const [myInfo, setMyInfo] = useState(null);
   const [myScore, setMyScore] = useState(null);
 
+  // Separate page routing active view state ('overview' vs 'leave')
+  const [activeTab, setActiveTab] = useState("overview");
+
   useEffect(() => {
     fetchMyLeaves();
     fetchMyInfo();
@@ -202,14 +205,6 @@ export default function StudentDashboard() {
     }
   };
 
-  const navigateToSection = (e, id) => {
-    e.preventDefault();
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
   const presentCount = myScore?.present_count || 0;
   const totalSessions = myScore?.total_sessions || 0;
   const absentCount = Math.max(0, totalSessions - presentCount);
@@ -228,12 +223,18 @@ export default function StudentDashboard() {
           <span>SORA</span>
         </div>
         <nav className="sidebar-menu">
-          <a href="#overview" onClick={(e) => navigateToSection(e, "overview")} className="menu-item active">
+          <button 
+            onClick={() => setActiveTab("overview")} 
+            className={`menu-item-btn ${activeTab === "overview" ? "active" : ""}`}
+          >
             <User size={18} /> Overview
-          </a>
-          <a href="#leave-module" onClick={(e) => navigateToSection(e, "leave-module")} className="menu-item">
+          </button>
+          <button 
+            onClick={() => setActiveTab("leave")} 
+            className={`menu-item-btn ${activeTab === "leave" ? "active" : ""}`}
+          >
             <Calendar size={18} /> Leave Module
-          </a>
+          </button>
         </nav>
         <button className="logout-button" onClick={logout}>
           <LogOut size={18} /> Logout
@@ -242,197 +243,201 @@ export default function StudentDashboard() {
 
       {/* Main Layout Area */}
       <main className="dashboard-content">
-        <header className="content-header" id="overview">
+        <header className="content-header">
           <div>
             <h1>Student Dashboard</h1>
             <p className="welcome-text">Welcome back</p>
           </div>
-          {myInfo?.class_name && (
+          {myInfo?.class_name && activeTab === "overview" && (
             <div className="class-badge">Class: {myInfo.class_name}</div>
           )}
         </header>
 
-        {/* Dashboard Cards Grid */}
-        <div className="dashboard-grid">
-          {/* Attendance Section featuring Pie Chart */}
-          <div className="card score-card">
-            <h3>My Attendance Status</h3>
-            {myScore ? (
-              <div className="chart-wrapper">
-                <div className="chart-container">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={chartData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {chartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [`${value} Sessions`, 'Status']} />
-                      <Legend verticalAlign="bottom" height={36} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="chart-center-text">
-                    <span className="percentage-num">{myScore.attendance_percentage}%</span>
-                    <span className="percentage-label">Attended</span>
+        {/* Tab Routing View Toggler */}
+        {activeTab === "overview" ? (
+          <div className="dashboard-grid animate-fade-in">
+            {/* Attendance Section featuring Pie Chart */}
+            <div className="card score-card">
+              <h3>My Attendance Status</h3>
+              {myScore ? (
+                <div className="chart-wrapper">
+                  <div className="chart-container">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={chartData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value) => [`${value} Sessions`, 'Status']} />
+                        <Legend verticalAlign="bottom" height={36} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="chart-center-text">
+                      <span className="percentage-num">{myScore.attendance_percentage}%</span>
+                      <span className="percentage-label">Attended</span>
+                    </div>
+                  </div>
+                  <div className="score-summary">
+                    <div className="stat-pill present">
+                      <span>Present:</span> <strong>{presentCount}</strong>
+                    </div>
+                    <div className="stat-pill absent">
+                      <span>Absent:</span> <strong>{absentCount}</strong>
+                    </div>
+                    <div className="stat-pill total">
+                      <span>Total:</span> <strong>{totalSessions}</strong>
+                    </div>
                   </div>
                 </div>
-                <div className="score-summary">
-                  <div className="stat-pill present">
-                    <span>Present:</span> <strong>{presentCount}</strong>
-                  </div>
-                  <div className="stat-pill absent">
-                    <span>Absent:</span> <strong>{absentCount}</strong>
-                  </div>
-                  <div className="stat-pill total">
-                    <span>Total:</span> <strong>{totalSessions}</strong>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className="loading-text">Loading attendance metrics...</p>
-            )}
-          </div>
-
-          {/* Verification / Action Card */}
-          <div className="card action-card">
-            <h3>Attendance Check-in</h3>
-            <p className="action-desc">Validate your classes using instant QR scanning paired with biometric face capturing checks.</p>
-            
-            {error && (
-              <div className="status-banner error">
-                <ShieldAlert size={18} /> {error}
-              </div>
-            )}
-
-            {step === "idle" && (
-              <button className="scan-button" onClick={startScan}>
-                <QrCode size={18} /> Scan QR to Mark Attendance
-              </button>
-            )}
-
-            {step === "scanning" && (
-              <div className="camera-box">
-                <p className="box-instruction">Point camera towards verification layout code</p>
-                <div id="qr-reader"></div>
-                <button className="btn-secondary" onClick={cancelScan}>Cancel Scan</button>
-              </div>
-            )}
-
-            {step === "face-capture" && (
-              <div className="camera-box">
-                <p className="box-instruction">QR Code verified! Keep still for face lock check.</p>
-                <div className="video-viewport">
-                  <video ref={videoRef} autoPlay playsInline></video>
-                </div>
-                <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
-                <div className="btn-row">
-                  <button className="scan-button" onClick={captureAndSubmit}>Capture & Submit</button>
-                  <button className="btn-secondary" onClick={cancelFaceCapture}>Cancel</button>
-                </div>
-              </div>
-            )}
-
-            {step === "result" && (
-              <div className="camera-box outcome-box">
-                <CheckCircle2 size={48} color="#10b981" />
-                <p className="success-message">{message}</p>
-                <button className="scan-button" onClick={reset}>Complete</button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Leave Requests Management Area */}
-        <section className="card leave-section" id="leave-module">
-          <div className="leave-header">
-            <div>
-              <h3>Leave Request Management</h3>
-              <p className="section-subtitle">File extensions, check approval states or submit emergency exceptions.</p>
+              ) : (
+                <p className="loading-text">Loading attendance metrics...</p>
+              )}
             </div>
-            <button className="btn-primary" onClick={() => setShowLeaveForm(!showLeaveForm)}>
-              {showLeaveForm ? "Close Window" : "Apply for Leave"}
-            </button>
+
+            {/* Verification / Action Card */}
+            <div className="card action-card">
+              <h3>Attendance Check-in</h3>
+              <p className="action-desc">Validate your classes using instant QR scanning paired with biometric face capturing checks.</p>
+              
+              {error && (
+                <div className="status-banner error">
+                  <ShieldAlert size={18} /> {error}
+                </div>
+              )}
+
+              {step === "idle" && (
+                <button className="scan-button" onClick={startScan}>
+                  <QrCode size={18} /> Scan QR to Mark Attendance
+                </button>
+              )}
+
+              {step === "scanning" && (
+                <div className="camera-box">
+                  <p className="box-instruction">Point camera towards verification layout code</p>
+                  <div id="qr-reader"></div>
+                  <button className="btn-secondary" onClick={cancelScan}>Cancel Scan</button>
+                </div>
+              )}
+
+              {step === "face-capture" && (
+                <div className="camera-box">
+                  <p className="box-instruction">QR Code verified! Keep still for face lock check.</p>
+                  <div className="video-viewport">
+                    <video ref={videoRef} autoPlay playsInline></video>
+                  </div>
+                  <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
+                  <div className="btn-row">
+                    <button className="scan-button" onClick={captureAndSubmit}>Capture & Submit</button>
+                    <button className="btn-secondary" onClick={cancelFaceCapture}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {step === "result" && (
+                <div className="camera-box outcome-box">
+                  <CheckCircle2 size={48} color="#10b981" />
+                  <p className="success-message">{message}</p>
+                  <button className="scan-button" onClick={reset}>Complete</button>
+                </div>
+              )}
+            </div>
           </div>
-
-          {showLeaveForm && (
-            <form onSubmit={submitLeave} className="leave-form animate-fade-in">
-              <div className="form-group">
-                <label>Reason for Leave</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Medical checkup, family emergency"
-                  value={leaveReason}
-                  onChange={(e) => setLeaveReason(e.target.value)}
-                  required
-                />
+        ) : (
+          /* Separate Leave Requests Page View */
+          <section className="card leave-section animate-fade-in">
+            <div className="leave-header">
+              <div>
+                <h3>Leave Request Management</h3>
+                <p className="section-subtitle">File extensions, check approval states or submit emergency exceptions.</p>
               </div>
-              <div className="form-grid">
+              <button className="btn-primary" onClick={() => setShowLeaveForm(!showLeaveForm)}>
+                {showLeaveForm ? "Close Form" : "Apply for Leave"}
+              </button>
+            </div>
+
+            {showLeaveForm && (
+              <form onSubmit={submitLeave} className="leave-form animate-fade-in">
                 <div className="form-group">
-                  <label>From Date</label>
+                  <label>Reason for Leave</label>
                   <input
-                    type="date"
-                    value={leaveFrom}
-                    onChange={(e) => setLeaveFrom(e.target.value)}
+                    type="text"
+                    placeholder="e.g., Medical checkup, family emergency"
+                    value={leaveReason}
+                    onChange={(e) => setLeaveReason(e.target.value)}
                     required
                   />
                 </div>
-                <div className="form-group">
-                  <label>To Date</label>
-                  <input
-                    type="date"
-                    value={leaveTo}
-                    onChange={(e) => setLeaveTo(e.target.value)}
-                    required
-                  />
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>From Date</label>
+                    <input
+                      type="date"
+                      value={leaveFrom}
+                      onChange={(e) => setLeaveFrom(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>To Date</label>
+                    <input
+                      type="date"
+                      value={leaveTo}
+                      onChange={(e) => setLeaveTo(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="form-footer">
-                <button type="submit" className="scan-button">Submit Application</button>
-                {leaveMessage && <p className="form-status-msg">{leaveMessage}</p>}
-              </div>
-            </form>
-          )}
-
-          <div className="table-container">
-            <h4>Application History Log</h4>
-            {myLeaves.length === 0 ? (
-              <p className="empty-notice">No processed exceptions logged to date.</p>
-            ) : (
-              <table className="modern-table">
-                <thead>
-                  <tr>
-                    <th>Reason</th>
-                    <th>From</th>
-                    <th>To</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {myLeaves.map((l) => (
-                    <tr key={l.id}>
-                      <td>{l.reason}</td>
-                      <td>{l.date_from}</td>
-                      <td>{l.date_to}</td>
-                      <td>
-                        <span className={`status-pill state-${l.status?.toLowerCase() || 'pending'}`}>
-                          {l.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                <div className="form-footer">
+                  <button type="submit" className="scan-button" style={{ maxWidth: "240px" }}>
+                    Submit Application
+                  </button>
+                  {leaveMessage && <p className="form-status-msg">{leaveMessage}</p>}
+                </div>
+              </form>
             )}
-          </div>
-        </section>
+
+            <div className="table-container">
+              <h4>Application History Log</h4>
+              {myLeaves.length === 0 ? (
+                <p className="empty-notice">No processed exceptions logged to date.</p>
+              ) : (
+                <table className="modern-table">
+                  <thead>
+                    <tr>
+                      <th>Reason</th>
+                      <th>From</th>
+                      <th>To</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myLeaves.map((l) => (
+                      <tr key={l.id}>
+                        <td>{l.reason}</td>
+                        <td>{l.date_from}</td>
+                        <td>{l.date_to}</td>
+                        <td>
+                          <span className={`status-pill state-${l.status?.toLowerCase() || 'pending'}`}>
+                            {l.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );
