@@ -1,27 +1,391 @@
-/* Page-specific accent for the Student Dashboard */
-.student-dashboard {
-  border-top: 4px solid #2f5fdb;
+:root {
+  --primary: #2f5fdb;
+  --primary-hover: #1e4bb3;
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --text-dark: #1e293b;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --success: #10b981;
+  --danger: #ef4444;
 }
 
-.student-dashboard h2 {
-  color: #2f5fdb;
+body {
+  margin: 0;
+  background-color: var(--bg-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-dark);
 }
 
-/* Style the "My Attendance" score box distinctly on this page */
-.student-dashboard .score-box {
-  background: linear-gradient(135deg, #eaf0ff, #f7f9ff);
-  border: 1px solid #d6e0ff;
+/* Master Layout Grid Framework */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
 }
 
-/* Make the primary "Scan QR" button stand out */
-.student-dashboard .scan-button {
-  background: #2f5fdb;
-  color: white;
-  font-size: 1rem;
-  padding: 12px 24px;
+/* Sidebar Styling Component */
+.dashboard-sidebar {
+  width: 260px;
+  background-color: #1e293b;
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  position: fixed;
+  height: 100vh;
+  box-sizing: border-box;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 32px;
+  color: #fff;
+}
+
+.brand-icon {
+  color: #38bdf8;
+}
+
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-grow: 1;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  color: #94a3b8;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.menu-item:hover, .menu-item.active {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: transparent;
+  border: 1px solid #475569;
+  color: #f1f5f9;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.logout-button:hover {
+  background-color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* Central Workspace Area Layout */
+.dashboard-content {
+  margin-left: 260px;
+  flex-grow: 1;
+  padding: 40px;
+  max-width: 1200px;
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 32px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 20px;
+}
+
+.content-header h1 {
+  margin: 0;
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.welcome-text {
+  margin: 4px 0 0 0;
+  color: var(--text-muted);
+}
+
+.welcome-text span {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.class-badge {
+  background-color: #e0e7ff;
+  color: var(--primary);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+/* Responsive Dashboard Dynamic Layout Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Cards Design System */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.card h3 {
+  margin: 0 0 16px 0;
+  font-size: 1.15rem;
+  color: var(--text-dark);
+}
+
+/* Recharts Pie Chart Central Ring Positioning Context */
+.chart-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chart-container {
+  position: relative;
   width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
-.student-dashboard .scan-button:hover {
-  background: #244aad;
+.chart-center-text {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
+
+.percentage-num {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.percentage-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.score-summary {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  width: 100%;
+  justify-content: center;
+}
+
+.stat-pill {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.stat-pill.present { background: #d1fae5; color: #065f46; }
+.stat-pill.absent { background: #fee2e2; color: #991b1b; }
+.stat-pill.total { background: #f1f5f9; color: #475569; }
+
+/* Camera UI Containers */
+.camera-box {
+  border: 2px dashed var(--border-color);
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+#qr-reader {
+  overflow: hidden;
+  border-radius: 8px;
+  border: none !important;
+  margin-bottom: 12px;
+}
+
+.video-viewport {
+  max-width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+  margin-bottom: 12px;
+}
+
+.video-viewport video {
+  width: 100%;
+  display: block;
+}
+
+/* Buttons Element Styling System */
+.scan-button, .btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  transition: background 0.2s;
+}
+
+.scan-button:hover, .btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  font-weight: 500;
+}
+
+.btn-secondary:hover {
+  background: #f1f5f9;
+}
+
+.btn-row {
+  display: flex;
+  gap: 12px;
+}
+
+/* Status Notifications Banners */
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+.status-banner.error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Form Styles Design Configuration */
+.leave-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.leave-header h3 { margin: 0; }
+.section-subtitle { margin: 4px 0 0 0; color: var(--text-muted); font-size: 0.9rem; }
+
+.leave-form {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.form-group input {
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  outline: none;
+}
+
+.form-group input:focus {
+  border-color: var(--primary);
+}
+
+/* Modern Structure Tables System */
+.table-container h4 {
+  margin: 0 0 12px 0;
+}
+
+.modern-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.modern-table th {
+  background: #f1f5f9;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 12px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.modern-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-dark);
+}
+
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-pill.state-approved { background-color: #d1fae5; color: #065f46; }
+.status-pill.state-pending { background-color: #fef3c7; color: #92400e; }
+.status-pill.state-rejected { background-color: #fee2e2; color: #991b1b; }
