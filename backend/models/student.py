@@ -8,8 +8,10 @@ class Student(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
     roll_number = Column(String, unique=True, nullable=False)
-    class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)  # deprecated, kept for compatibility
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
     face_encoding = Column(String, nullable=True)
 
     user = relationship("User")
     class_ = relationship("Class")
+    department = relationship("Department")

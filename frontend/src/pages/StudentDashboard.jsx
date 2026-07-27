@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
-import { LogOut, Calendar, QrCode, CheckCircle2, User, Award, ShieldAlert } from "lucide-react";
+import { LogOut, Calendar, QrCode, CheckCircle2, User, Award, ShieldAlert, UserCircle, ScanFace } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
+import StudentOnboarding from "./StudentOnboarding";
+import FaceEnrollCapture from "../components/FaceEnrollCapture";
 import "./StudentDashboard.css";
 
 export default function StudentDashboard() {
@@ -26,13 +28,25 @@ export default function StudentDashboard() {
   const [myLeaves, setMyLeaves] = useState([]);
   const [leaveMessage, setLeaveMessage] = useState("");
 
-  // Attendance score
+  // Student info (department + enrolled courses) and attendance score
   const [myInfo, setMyInfo] = useState(null);
   const [myScore, setMyScore] = useState(null);
 
   // Separate page routing active view state ('overview' vs 'leave')
   const [activeTab, setActiveTab] = useState("overview");
 
+  const [needsOnboarding, setNeedsOnboarding] = useState(null); // null = loading, true/false once known
+
+  // Profile tab - re-enroll face flow
+  const [reEnrolling, setReEnrolling] = useState(false);
+
+  // Profile tab - enroll in additional courses (within same department)
+  const [deptCourses, setDeptCourses] = useState([]);
+  const [selectedNewCourse, setSelectedNewCourse] = useState("");
+  const [enrollMessage, setEnrollMessage] = useState("");
+  const [enrollError, setEnrollError] = useState("");
+
+  // ── Initial load ──
   useEffect(() => {
     fetchMyLeaves();
     fetchMyInfo();
@@ -132,7 +146,7 @@ export default function StudentDashboard() {
         });
         setMessage(res.data.message);
         setStep("result");
-        fetchMyScore();
+        fetchMyScore(); // refresh score after marking attendance
       } catch (err) {
         setMessage("");
         setError(err.response?.data?.detail || "Failed to mark attendance");
@@ -177,16 +191,50 @@ export default function StudentDashboard() {
     }
   };
 
-  // ── Attendance score ──
+  // ── Student info (department + courses) and attendance score ──
   const fetchMyInfo = async () => {
     try {
-      const res = await api.get("/classes/my-student-info");
+      const res = await api.get("/classes/my-courses");
       setMyInfo(res.data);
-      if (res.data.class_id) {
-        fetchMyScoreWithInfo(res.data.student_id, res.data.class_id);
+      setNeedsOnboarding(!res.data.department_id);
+
+      // Show attendance score for the first enrolled course (score is per-course)
+      if (res.data.courses && res.data.courses.length > 0) {
+        fetchMyScoreWithInfo(res.data.student_id, res.data.courses[0].class_id);
+      }
+
+      // Load all courses in the student's department, for the "enroll in more" picker
+      if (res.data.department_id) {
+        fetchDeptCourses(res.data.department_id);
       }
     } catch (err) {
       console.error("Failed to load student info");
+    }
+  };
+
+  const fetchDeptCourses = async (departmentId) => {
+    try {
+      const res = await api.get(`/departments/${departmentId}/courses`);
+      setDeptCourses(res.data);
+    } catch (err) {
+      console.error("Failed to load department courses");
+    }
+  };
+
+  const enrolledClassIds = new Set((myInfo?.courses || []).map((c) => c.class_id));
+  const availableCourses = deptCourses.filter((c) => !enrolledClassIds.has(c.id));
+
+  const enrollInAdditionalCourse = async () => {
+    if (!selectedNewCourse) return;
+    setEnrollError("");
+    setEnrollMessage("");
+    try {
+      const res = await api.post(`/classes/enroll-additional?class_id=${selectedNewCourse}`);
+      setEnrollMessage(res.data.message || "Enrolled successfully");
+      setSelectedNewCourse("");
+      fetchMyInfo();
+    } catch (err) {
+      setEnrollError(err.response?.data?.detail || "Failed to enroll in course");
     }
   };
 
@@ -200,8 +248,8 @@ export default function StudentDashboard() {
   };
 
   const fetchMyScore = async () => {
-    if (myInfo && myInfo.class_id) {
-      fetchMyScoreWithInfo(myInfo.student_id, myInfo.class_id);
+    if (myInfo && myInfo.courses && myInfo.courses.length > 0) {
+      fetchMyScoreWithInfo(myInfo.student_id, myInfo.courses[0].class_id);
     }
   };
 
@@ -214,6 +262,23 @@ export default function StudentDashboard() {
     { name: "Absent", value: absentCount, color: "#ef4444" },
   ];
 
+  // ── Still checking onboarding status ──
+  if (needsOnboarding === null) {
+    return <p style={{ textAlign: "center", marginTop: "50px" }}>Loading...</p>;
+  }
+
+  // ── First-time setup: department + course + face enrollment ──
+  if (needsOnboarding) {
+    return (
+      <StudentOnboarding
+        onComplete={() => {
+          setNeedsOnboarding(false);
+          fetchMyInfo();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="dashboard-container">
       {/* Sidebar Navigation Panel */}
@@ -223,17 +288,23 @@ export default function StudentDashboard() {
           <span>SORA</span>
         </div>
         <nav className="sidebar-menu">
-          <button 
-            onClick={() => setActiveTab("overview")} 
+          <button
+            onClick={() => setActiveTab("overview")}
             className={`menu-item-btn ${activeTab === "overview" ? "active" : ""}`}
           >
             <User size={18} /> Overview
           </button>
-          <button 
-            onClick={() => setActiveTab("leave")} 
+          <button
+            onClick={() => setActiveTab("leave")}
             className={`menu-item-btn ${activeTab === "leave" ? "active" : ""}`}
           >
             <Calendar size={18} /> Leave Module
+          </button>
+          <button
+            onClick={() => setActiveTab("profile")}
+            className={`menu-item-btn ${activeTab === "profile" ? "active" : ""}`}
+          >
+            <UserCircle size={18} /> My Profile
           </button>
         </nav>
         <button className="logout-button" onClick={logout}>
@@ -248,13 +319,18 @@ export default function StudentDashboard() {
             <h1>Student Dashboard</h1>
             <p className="welcome-text">Welcome back</p>
           </div>
-          {myInfo?.class_name && activeTab === "overview" && (
-            <div className="class-badge">Class: {myInfo.class_name}</div>
+          {myInfo?.department_name && activeTab === "overview" && (
+            <div className="class-badge">
+              Department: {myInfo.department_name}
+              {myInfo.courses && myInfo.courses.length > 0 && (
+                <> &middot; {myInfo.courses.length} course{myInfo.courses.length > 1 ? "s" : ""} enrolled</>
+              )}
+            </div>
           )}
         </header>
 
         {/* Tab Routing View Toggler */}
-        {activeTab === "overview" ? (
+        {activeTab === "overview" && (
           <div className="dashboard-grid animate-fade-in">
             {/* Attendance Section featuring Pie Chart */}
             <div className="card score-card">
@@ -299,7 +375,11 @@ export default function StudentDashboard() {
                   </div>
                 </div>
               ) : (
-                <p className="loading-text">Loading attendance metrics...</p>
+                <p className="loading-text">
+                  {myInfo && myInfo.courses && myInfo.courses.length === 0
+                    ? "You are not enrolled in any course yet."
+                    : "Loading attendance metrics..."}
+                </p>
               )}
             </div>
 
@@ -307,7 +387,7 @@ export default function StudentDashboard() {
             <div className="card action-card">
               <h3>Attendance Check-in</h3>
               <p className="action-desc">Validate your classes using instant QR scanning paired with biometric face capturing checks.</p>
-              
+
               {error && (
                 <div className="status-banner error">
                   <ShieldAlert size={18} /> {error}
@@ -351,7 +431,9 @@ export default function StudentDashboard() {
               )}
             </div>
           </div>
-        ) : (
+        )}
+
+        {activeTab === "leave" && (
           /* Separate Leave Requests Page View */
           <section className="card leave-section animate-fade-in">
             <div className="leave-header">
@@ -437,6 +519,137 @@ export default function StudentDashboard() {
               )}
             </div>
           </section>
+        )}
+
+        {activeTab === "profile" && (
+          <div className="dashboard-grid animate-fade-in">
+            {/* Personal & Academic Details */}
+            <div className="card">
+              <h3>My Details</h3>
+              {myInfo ? (
+                <table className="modern-table">
+                  <tbody>
+                    <tr>
+                      <td><strong>Name</strong></td>
+                      <td>{myInfo.name}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Email</strong></td>
+                      <td>{myInfo.email}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Roll Number</strong></td>
+                      <td>{myInfo.roll_number}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Department</strong></td>
+                      <td>{myInfo.department_name || "Not set"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              ) : (
+                <p className="loading-text">Loading profile...</p>
+              )}
+
+              <h4 style={{ marginTop: "20px" }}>Enrolled Courses</h4>
+              {myInfo && myInfo.courses && myInfo.courses.length > 0 ? (
+                <table className="modern-table">
+                  <thead>
+                    <tr>
+                      <th>Course</th>
+                      <th>Teacher</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myInfo.courses.map((c) => (
+                      <tr key={c.class_id}>
+                        <td>{c.name}</td>
+                        <td>{c.teacher_name || "Unassigned"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="empty-notice">Not enrolled in any course yet.</p>
+              )}
+
+              {myInfo && myInfo.department_id && (
+                <div style={{ marginTop: "18px" }}>
+                  <h4>Enroll in Another Course</h4>
+                  {availableCourses.length > 0 ? (
+                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                      <select
+                        value={selectedNewCourse}
+                        onChange={(e) => setSelectedNewCourse(e.target.value)}
+                      >
+                        <option value="">-- Select a course --</option>
+                        {availableCourses.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} {c.teacher_name ? `(${c.teacher_name})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={enrollInAdditionalCourse}
+                        disabled={!selectedNewCourse}
+                      >
+                        Enroll
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="empty-notice">
+                      You're enrolled in every available course in {myInfo.department_name}.
+                    </p>
+                  )}
+                  {enrollMessage && <p style={{ color: "green" }}>{enrollMessage}</p>}
+                  {enrollError && <p style={{ color: "red" }}>{enrollError}</p>}
+                </div>
+              )}
+
+              <p style={{ marginTop: "12px", fontSize: "0.85rem" }} className="section-subtitle">
+                You can enroll in additional courses within your own department here.
+                To change your department or drop a course, please contact your teacher or admin.
+              </p>
+            </div>
+
+            {/* Face Enrollment Status */}
+            <div className="card action-card">
+              <h3>Face Verification</h3>
+              {myInfo && myInfo.face_enrolled && !reEnrolling ? (
+                <div className="camera-box outcome-box">
+                  <ScanFace size={48} color="#10b981" />
+                  <p className="success-message">Your face is enrolled and ready for attendance verification.</p>
+                  <button className="btn-secondary" onClick={() => setReEnrolling(true)}>
+                    Re-enroll Face
+                  </button>
+                </div>
+              ) : (
+                <div className="camera-box">
+                  {!myInfo?.face_enrolled && (
+                    <p className="box-instruction">
+                      You haven't enrolled your face yet. This is required to mark attendance.
+                    </p>
+                  )}
+                  <FaceEnrollCapture
+                    onEnrolled={() => {
+                      setReEnrolling(false);
+                      fetchMyInfo();
+                    }}
+                  />
+                  {reEnrolling && (
+                    <button
+                      className="btn-secondary"
+                      style={{ marginTop: "10px" }}
+                      onClick={() => setReEnrolling(false)}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </main>
     </div>

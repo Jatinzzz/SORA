@@ -123,3 +123,25 @@ class ClassAttendanceScore(BaseModel):
     class_name: str
     total_sessions: int
     students: list[StudentAttendanceScore]
+
+class DepartmentResponse(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+class DepartmentCreate(BaseModel):
+    name: str
+
+class CourseResponse(BaseModel):
+    id: int
+    name: str
+    teacher_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class StudentOnboardRequest(BaseModel):
+    department_id: int
+    class_id: int

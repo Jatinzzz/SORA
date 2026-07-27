@@ -137,7 +137,10 @@ export default function Register() {
         <h2 className="register-title">Register</h2>
         {success ? (
           <p className="register-success">
-            Registered successfully! Waiting for admin approval. Redirecting to login...
+            {formData.role === "student"
+              ? "Registered successfully! You can log in now."
+              : "Registered successfully! Waiting for admin approval."}
+            {" "}Redirecting to login...
           </p>
         ) : (
           <form onSubmit={handleSubmit} className="register-form">
