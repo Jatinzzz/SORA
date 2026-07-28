@@ -94,8 +94,6 @@ class LeaveReviewRequest(BaseModel):
     status: str  # "approved" or "rejected"
 
 class VerifyUserRequest(BaseModel):
-    roll_number: Optional[str] = None   # required if role == student
-    class_id: Optional[int] = None      # optional, can assign later
     department: Optional[str] = None    # required if role == teacher
 
 class ClassCreate(BaseModel):
@@ -145,3 +143,11 @@ class CourseResponse(BaseModel):
 class StudentOnboardRequest(BaseModel):
     department_id: int
     class_id: int
+
+class OverallAttendanceScore(BaseModel):
+    student_id: int
+    total_sessions: int
+    present_count: int
+    absent_count: int
+    overall_percentage: float
+    courses: list[StudentAttendanceScore]

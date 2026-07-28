@@ -31,6 +31,8 @@ export default function StudentDashboard() {
   // Student info (department + enrolled courses) and attendance score
   const [myInfo, setMyInfo] = useState(null);
   const [myScore, setMyScore] = useState(null);
+  const [overallScore, setOverallScore] = useState(null);
+  const [selectedScoreCourse, setSelectedScoreCourse] = useState(""); // "" = overall, else class_id
 
   // Separate page routing active view state ('overview' vs 'leave')
   const [activeTab, setActiveTab] = useState("overview");
@@ -198,9 +200,9 @@ export default function StudentDashboard() {
       setMyInfo(res.data);
       setNeedsOnboarding(!res.data.department_id);
 
-      // Show attendance score for the first enrolled course (score is per-course)
       if (res.data.courses && res.data.courses.length > 0) {
-        fetchMyScoreWithInfo(res.data.student_id, res.data.courses[0].class_id);
+        // Default view: overall attendance across all enrolled courses
+        fetchOverallScore(res.data.student_id);
       }
 
       // Load all courses in the student's department, for the "enroll in more" picker
@@ -209,6 +211,28 @@ export default function StudentDashboard() {
       }
     } catch (err) {
       console.error("Failed to load student info");
+    }
+  };
+
+  const fetchOverallScore = async (studentId) => {
+    try {
+      const res = await api.get(`/analytics/student/${studentId}/overall`);
+      setOverallScore(res.data);
+      setMyScore(null);
+      setSelectedScoreCourse("");
+    } catch (err) {
+      console.error("Failed to load overall attendance score");
+    }
+  };
+
+  const handleScoreViewChange = (value) => {
+    setSelectedScoreCourse(value);
+    if (!value) {
+      // "Overall" selected
+      if (myInfo) fetchOverallScore(myInfo.student_id);
+    } else {
+      setOverallScore(null);
+      fetchMyScoreWithInfo(myInfo.student_id, value);
     }
   };
 
@@ -248,13 +272,22 @@ export default function StudentDashboard() {
   };
 
   const fetchMyScore = async () => {
-    if (myInfo && myInfo.courses && myInfo.courses.length > 0) {
-      fetchMyScoreWithInfo(myInfo.student_id, myInfo.courses[0].class_id);
+    if (!myInfo) return;
+    if (selectedScoreCourse) {
+      fetchMyScoreWithInfo(myInfo.student_id, selectedScoreCourse);
+    } else {
+      fetchOverallScore(myInfo.student_id);
     }
   };
 
-  const presentCount = myScore?.present_count || 0;
-  const totalSessions = myScore?.total_sessions || 0;
+  // Use whichever score is currently active - overall by default, or a specific course
+  const activeScore = selectedScoreCourse ? myScore : overallScore;
+  const activePercentage = selectedScoreCourse
+    ? myScore?.attendance_percentage
+    : overallScore?.overall_percentage;
+
+  const presentCount = activeScore?.present_count || 0;
+  const totalSessions = activeScore?.total_sessions || 0;
   const absentCount = Math.max(0, totalSessions - presentCount);
 
   const chartData = [
@@ -334,8 +367,22 @@ export default function StudentDashboard() {
           <div className="dashboard-grid animate-fade-in">
             {/* Attendance Section featuring Pie Chart */}
             <div className="card score-card">
-              <h3>My Attendance Status</h3>
-              {myScore ? (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                <h3 style={{ margin: 0 }}>My Attendance Status</h3>
+                {myInfo && myInfo.courses && myInfo.courses.length > 0 && (
+                  <select
+                    value={selectedScoreCourse}
+                    onChange={(e) => handleScoreViewChange(e.target.value)}
+                    style={{ fontSize: "0.85rem" }}
+                  >
+                    <option value="">Overall (All Courses)</option>
+                    {myInfo.courses.map((c) => (
+                      <option key={c.class_id} value={c.class_id}>{c.name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              {activeScore ? (
                 <div className="chart-wrapper">
                   <div className="chart-container">
                     <ResponsiveContainer width="100%" height={200}>
@@ -358,8 +405,10 @@ export default function StudentDashboard() {
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="chart-center-text">
-                      <span className="percentage-num">{myScore.attendance_percentage}%</span>
-                      <span className="percentage-label">Attended</span>
+                      <span className="percentage-num">{activePercentage}%</span>
+                      <span className="percentage-label">
+                        {selectedScoreCourse ? "Attended" : "Overall"}
+                      </span>
                     </div>
                   </div>
                   <div className="score-summary">
@@ -373,6 +422,33 @@ export default function StudentDashboard() {
                       <span>Total:</span> <strong>{totalSessions}</strong>
                     </div>
                   </div>
+
+                  {/* Per-course breakdown, only shown in "Overall" view */}
+                  {!selectedScoreCourse && overallScore && overallScore.courses.length > 1 && (
+                    <div style={{ marginTop: "14px" }}>
+                      <h4 style={{ margin: "0 0 8px 0" }}>By Course</h4>
+                      <table className="modern-table">
+                        <thead>
+                          <tr>
+                            <th>Course</th>
+                            <th>Present</th>
+                            <th>Total</th>
+                            <th>%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {overallScore.courses.map((c, idx) => (
+                            <tr key={idx}>
+                              <td>{c.name}</td>
+                              <td>{c.present_count}</td>
+                              <td>{c.total_sessions}</td>
+                              <td>{c.attendance_percentage}%</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="loading-text">

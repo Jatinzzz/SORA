@@ -7,8 +7,9 @@ from models.teacher import Teacher
 from models.class_ import Class
 from models.session import Session as SessionModel
 from models.attendance import Attendance
-from schemas import StudentAttendanceScore, ClassAttendanceScore
+from schemas import StudentAttendanceScore, ClassAttendanceScore, OverallAttendanceScore
 from utils.security import require_role
+from models.student_class import StudentClass
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -103,3 +104,34 @@ def get_all_class_scores(
             students=student_scores
         ))
     return result
+
+@router.get("/student/{student_id}/overall", response_model=OverallAttendanceScore)
+def get_student_overall_score(
+    student_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(require_role(["student", "teacher", "admin"]))
+):
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    if current_user.role == "student" and student.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this record")
+
+    links = db.query(StudentClass).filter(StudentClass.student_id == student.id).all()
+
+    course_scores = [calculate_student_score(db, student, link.class_id) for link in links]
+
+    total_sessions = sum(c.total_sessions for c in course_scores)
+    total_present = sum(c.present_count for c in course_scores)
+    total_absent = total_sessions - total_present
+    overall_percentage = round((total_present / total_sessions) * 100, 2) if total_sessions > 0 else 0.0
+
+    return OverallAttendanceScore(
+        student_id=student.id,
+        total_sessions=total_sessions,
+        present_count=total_present,
+        absent_count=total_absent,
+        overall_percentage=overall_percentage,
+        courses=course_scores
+    )
