@@ -439,7 +439,7 @@ export default function StudentDashboard() {
                         <tbody>
                           {overallScore.courses.map((c, idx) => (
                             <tr key={idx}>
-                              <td>{c.name}</td>
+                              <td>{c.class_name}</td>
                               <td>{c.present_count}</td>
                               <td>{c.total_sessions}</td>
                               <td>{c.attendance_percentage}%</td>

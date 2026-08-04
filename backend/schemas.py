@@ -90,6 +90,21 @@ class LeaveRequestResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class LeaveRequestWithStudent(BaseModel):
+    id: int
+    student_id: int
+    student_name: str
+    roll_number: str
+    reason: str
+    date_from: date
+    date_to: date
+    status: str
+    reviewed_by: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class LeaveReviewRequest(BaseModel):
     status: str  # "approved" or "rejected"
 
@@ -111,6 +126,7 @@ class StudentAttendanceScore(BaseModel):
     student_id: int
     name: str
     roll_number: str
+    class_name: Optional[str] = None
     total_sessions: int
     present_count: int
     absent_count: int
@@ -151,3 +167,4 @@ class OverallAttendanceScore(BaseModel):
     absent_count: int
     overall_percentage: float
     courses: list[StudentAttendanceScore]
+

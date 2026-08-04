@@ -17,6 +17,7 @@ import numpy as np
 import cv2
 import json
 from sqlalchemy.exc import IntegrityError
+from models.student_class import StudentClass
 
 
 
@@ -63,7 +64,11 @@ def validate_qr(
     if not student:
         raise HTTPException(status_code=404, detail="Student profile not found")
 
-    if student.class_id != session_obj.class_id:
+    link = db.query(StudentClass).filter(
+        StudentClass.student_id == student.id,
+        StudentClass.class_id == session_obj.class_id
+    ).first()
+    if not link:
         raise HTTPException(status_code=403, detail="This QR code is not for your class")
 
     return {
@@ -112,7 +117,11 @@ def mark_attendance(
     if not student:
         raise HTTPException(status_code=404, detail="Student profile not found")
 
-    if student.class_id != session_obj.class_id:
+    link = db.query(StudentClass).filter(
+        StudentClass.student_id == student.id,
+        StudentClass.class_id == session_obj.class_id
+    ).first()
+    if not link:
         raise HTTPException(status_code=403, detail="This QR code is not for your class")
 
     # ── Step 2: Check for existing attendance (avoid duplicate marking) ──

@@ -32,10 +32,13 @@ def calculate_student_score(db: DBSession, student: Student, class_id: int):
     absent_count = total_sessions - present_count
     percentage = round((present_count / total_sessions) * 100, 2) if total_sessions > 0 else 0.0
 
+    class_obj = db.query(Class).filter(Class.id == class_id).first()
+
     return StudentAttendanceScore(
         student_id=student.id,
         name=student.user.name,
         roll_number=student.roll_number,
+        class_name=class_obj.name if class_obj else None,
         total_sessions=total_sessions,
         present_count=present_count,
         absent_count=absent_count,

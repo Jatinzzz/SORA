@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { 
-  LogOut, 
-  PlayCircle, 
-  Award, 
-  ShieldAlert, 
-  UserPlus,
-  ClipboardList 
+import {
+  LogOut,
+  PlayCircle,
+  Award,
+  ShieldAlert,
+  Users,
+  ClipboardList,
+  X,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
@@ -21,17 +22,22 @@ export default function TeacherDashboard() {
   const [students, setStudents] = useState([]);
   const [error, setError] = useState("");
   const [pendingLeaves, setPendingLeaves] = useState([]);
-  const [unassignedStudents, setUnassignedStudents] = useState([]);
   const [classScores, setClassScores] = useState(null);
-  
-  // Track current section view ('overview' vs 'unassigned')
+
+  // Track current section view ('overview' vs 'manage-students')
   const [activeTab, setActiveTab] = useState("overview");
   const intervalRef = useRef(null);
+
+  // ── Manage Students (scoped to teacher's own classes) ──
+  const [manageSelectedClass, setManageSelectedClass] = useState("");
+  const [manageStudents, setManageStudents] = useState([]);
+  const [manageError, setManageError] = useState("");
+  const [viewingProfile, setViewingProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     fetchClasses();
     fetchPendingLeaves();
-    fetchUnassigned();
     return () => clearInterval(intervalRef.current);
   }, []);
 
@@ -121,30 +127,6 @@ export default function TeacherDashboard() {
     }
   };
 
-  const fetchUnassigned = async () => {
-    try {
-      const res = await api.get("/classes/unassigned-students");
-      setUnassignedStudents(res.data);
-    } catch (err) {
-      console.error("Failed to load unassigned students");
-    }
-  };
-
-  const assignStudent = async (studentId, classId) => {
-    if (!classId) {
-      alert("Please select a class first");
-      return;
-    }
-    try {
-      await api.put(`/classes/${classId}/assign-student/${studentId}`);
-      setUnassignedStudents(unassignedStudents.filter((s) => s.student_id !== studentId));
-      fetchClasses();
-      alert("Student assigned successfully");
-    } catch (err) {
-      alert(err.response?.data?.detail || "Failed to assign student");
-    }
-  };
-
   const fetchClassScores = async (classId) => {
     if (!classId) {
       setClassScores(null);
@@ -163,6 +145,53 @@ export default function TeacherDashboard() {
     fetchClassScores(classId);
   };
 
+  // ── Manage Students ──
+  const handleManageClassSelect = async (classId) => {
+    setManageSelectedClass(classId);
+    setManageError("");
+    setViewingProfile(null);
+    if (!classId) {
+      setManageStudents([]);
+      return;
+    }
+    try {
+      const res = await api.get(`/classes/${classId}/students`);
+      setManageStudents(res.data);
+    } catch (err) {
+      setManageError("Failed to load students for this course");
+    }
+  };
+
+  const handleRemoveStudent = async (studentId, studentName) => {
+    if (!window.confirm(`Remove ${studentName} from this course?`)) return;
+    try {
+      await api.delete(`/classes/${manageSelectedClass}/student/${studentId}`);
+      setManageStudents(manageStudents.filter((s) => s.student_id !== studentId));
+      if (viewingProfile && viewingProfile.student_id === studentId) {
+        setViewingProfile(null);
+      }
+    } catch (err) {
+      setManageError(err.response?.data?.detail || "Failed to remove student");
+    }
+  };
+
+  const handleViewProfile = async (studentId) => {
+    setProfileLoading(true);
+    setViewingProfile(null);
+    try {
+      const res = await api.get(`/classes/${manageSelectedClass}/student/${studentId}/profile`);
+      setViewingProfile(res.data);
+    } catch (err) {
+      setManageError("Failed to load student profile");
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const closeProfile = () => {
+    setViewingProfile(null);
+  };
+
   return (
     <div className="dashboard-container">
       {/* Sidebar Navigation Panel */}
@@ -172,17 +201,17 @@ export default function TeacherDashboard() {
           <span>SORA</span>
         </div>
         <nav className="sidebar-menu">
-          <button 
-            onClick={() => setActiveTab("overview")} 
+          <button
+            onClick={() => setActiveTab("overview")}
             className={`menu-item-btn ${activeTab === "overview" ? "active" : ""}`}
           >
             <ClipboardList size={18} /> Overview & Leaves
           </button>
-          <button 
-            onClick={() => setActiveTab("unassigned")} 
-            className={`menu-item-btn ${activeTab === "unassigned" ? "active" : ""}`}
+          <button
+            onClick={() => setActiveTab("manage-students")}
+            className={`menu-item-btn ${activeTab === "manage-students" ? "active" : ""}`}
           >
-            <UserPlus size={18} /> Unassigned Students
+            <Users size={18} /> Manage Students
           </button>
         </nav>
         <button className="logout-button" onClick={logout}>
@@ -209,7 +238,7 @@ export default function TeacherDashboard() {
         {activeTab === "overview" ? (
           <div className="overview-page-layout">
             <div className="dashboard-grid">
-              
+
               {/* Session Control Box */}
               <div className="card action-card">
                 {!session ? (
@@ -217,8 +246,8 @@ export default function TeacherDashboard() {
                     <h3>Start a Session</h3>
                     <p className="action-desc">Select an authorized course partition grid below to roll out live QR captures.</p>
                     <div className="session-controls-group">
-                      <select 
-                        value={selectedClass} 
+                      <select
+                        value={selectedClass}
                         onChange={(e) => handleClassChange(e.target.value)}
                         className="modern-select"
                       >
@@ -307,8 +336,8 @@ export default function TeacherDashboard() {
                         </thead>
                         <tbody>
                           {classScores.students.map((s) => (
-                            <tr 
-                              key={s.student_id} 
+                            <tr
+                              key={s.student_id}
                               className={s.attendance_percentage < 75 ? "alert-row" : ""}
                             >
                               <td>{s.name}</td>
@@ -348,6 +377,8 @@ export default function TeacherDashboard() {
                   <table className="modern-table">
                     <thead>
                       <tr>
+                        <th>Student</th>
+                        <th>Roll No.</th>
                         <th>Reason</th>
                         <th>From</th>
                         <th>To</th>
@@ -357,7 +388,9 @@ export default function TeacherDashboard() {
                     <tbody>
                       {pendingLeaves.map((l) => (
                         <tr key={l.id}>
-                          <td><strong>{l.reason}</strong></td>
+                          <td><strong>{l.student_name}</strong></td>
+                          <td>{l.roll_number}</td>
+                          <td>{l.reason}</td>
                           <td>{l.date_from}</td>
                           <td>{l.date_to}</td>
                           <td>
@@ -379,50 +412,143 @@ export default function TeacherDashboard() {
             </section>
           </div>
         ) : (
-          /* Separate Isolation Subview Section for Unassigned Students */
-          <div className="card leave-section animate-fade-in">
-            <div className="leave-header">
-              <div>
-                <h3>Unassigned Students Pipeline</h3>
-                <p className="section-subtitle">Route newly enrolled student profiles to their respective academic classrooms.</p>
+          /* Manage Students Subview */
+          <div className="overview-page-layout animate-fade-in">
+            <section className="card leave-section">
+              <div className="leave-header">
+                <div>
+                  <h3>Manage Students</h3>
+                  <p className="section-subtitle">
+                    View profiles and attendance, or remove students from courses you teach.
+                  </p>
+                </div>
               </div>
-            </div>
-            
-            <div className="table-container">
-              {unassignedStudents.length === 0 ? (
-                <p className="empty-notice">Clear pipeline! All student accounts are linked to a class structure.</p>
-              ) : (
-                <table className="modern-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Roll No.</th>
-                      <th>Assign to Target Class</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {unassignedStudents.map((s) => (
-                      <tr key={s.student_id}>
-                        <td><strong>{s.name}</strong></td>
-                        <td>{s.roll_number}</td>
-                        <td>
-                          <select
-                            onChange={(e) => assignStudent(s.student_id, e.target.value)}
-                            defaultValue=""
-                            className="modern-select table-inline-select"
-                          >
-                            <option value="" disabled>-- Select class --</option>
-                            {classes.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+              {manageError && (
+                <div className="status-banner error">
+                  <ShieldAlert size={18} /> {manageError}
+                </div>
               )}
-            </div>
+
+              <div className="session-controls-group" style={{ marginBottom: "16px" }}>
+                <select
+                  value={manageSelectedClass}
+                  onChange={(e) => handleManageClassSelect(e.target.value)}
+                  className="modern-select"
+                >
+                  <option value="">-- Select a course --</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {manageSelectedClass && (
+                <div className="table-container">
+                  <table className="modern-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Roll No.</th>
+                        <th>Email</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {manageStudents.length === 0 ? (
+                        <tr>
+                          <td colSpan="4">
+                            <p className="empty-notice">No students enrolled in this course.</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        manageStudents.map((s) => (
+                          <tr key={s.student_id}>
+                            <td><strong>{s.name}</strong></td>
+                            <td>{s.roll_number}</td>
+                            <td>{s.email}</td>
+                            <td>
+                              <div className="btn-row">
+                                <button
+                                  onClick={() => handleViewProfile(s.student_id)}
+                                  className="table-action-btn present-btn"
+                                >
+                                  View Profile
+                                </button>
+                                <button
+                                  onClick={() => handleRemoveStudent(s.student_id, s.name)}
+                                  className="table-action-btn absent-btn"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            {/* Student Profile Panel */}
+            {(profileLoading || viewingProfile) && (
+              <div className="card action-card animate-fade-in">
+                {profileLoading ? (
+                  <p className="loading-text">Loading profile...</p>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h3 style={{ margin: 0 }}>{viewingProfile.name}'s Profile</h3>
+                      <button onClick={closeProfile} className="btn-secondary">
+                        <X size={16} style={{ verticalAlign: "middle" }} /> Close
+                      </button>
+                    </div>
+
+                    <table className="modern-table" style={{ marginTop: "14px" }}>
+                      <tbody>
+                        <tr><td><strong>Email</strong></td><td>{viewingProfile.email}</td></tr>
+                        <tr><td><strong>Roll Number</strong></td><td>{viewingProfile.roll_number}</td></tr>
+                        <tr><td><strong>Department</strong></td><td>{viewingProfile.department_name || "Not set"}</td></tr>
+                        <tr><td><strong>Face Enrolled</strong></td><td>{viewingProfile.face_enrolled ? "Yes" : "No"}</td></tr>
+                      </tbody>
+                    </table>
+
+                    <h4 style={{ marginTop: "18px" }}>
+                      Overall Attendance: {viewingProfile.overall_percentage}%
+                      {" "}({viewingProfile.present_count} / {viewingProfile.total_sessions} sessions)
+                    </h4>
+
+                    <h4 style={{ marginTop: "18px" }}>By Course</h4>
+                    {viewingProfile.courses.length === 0 ? (
+                      <p className="empty-notice">Not enrolled in any course.</p>
+                    ) : (
+                      <table className="modern-table">
+                        <thead>
+                          <tr>
+                            <th>Course</th>
+                            <th>Present</th>
+                            <th>Total</th>
+                            <th>Percentage</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {viewingProfile.courses.map((c, idx) => (
+                            <tr key={idx}>
+                              <td>{c.class_name}</td>
+                              <td>{c.present_count}</td>
+                              <td>{c.total_sessions}</td>
+                              <td>{c.attendance_percentage}%</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
       </main>

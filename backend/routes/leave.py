@@ -8,6 +8,8 @@ from models.leave_request import LeaveRequest
 from models.class_ import Class
 from schemas import LeaveRequestCreate, LeaveRequestResponse, LeaveReviewRequest
 from utils.security import require_role
+from schemas import LeaveRequestWithStudent
+from models.student_class import StudentClass
 
 router = APIRouter(prefix="/leave", tags=["Leave Management"])
 
@@ -54,7 +56,9 @@ def get_my_requests(
 
     return db.query(LeaveRequest).filter(LeaveRequest.student_id == student.id).order_by(LeaveRequest.created_at.desc()).all()
 
-@router.get("/pending", response_model=list[LeaveRequestResponse])
+
+
+@router.get("/pending", response_model=list[LeaveRequestWithStudent])
 def get_pending_requests(
     db: DBSession = Depends(get_db),
     current_user: User = Depends(require_role(["teacher"]))
@@ -66,13 +70,32 @@ def get_pending_requests(
     # Get all class IDs this teacher teaches
     class_ids = [c.id for c in db.query(Class).filter(Class.teacher_id == teacher.id).all()]
 
-    # Get all students in those classes
-    student_ids = [s.id for s in db.query(Student).filter(Student.class_id.in_(class_ids)).all()]
+    # Get all students enrolled in those classes (via the join table)
+    student_ids = [
+        link.student_id for link in
+        db.query(StudentClass).filter(StudentClass.class_id.in_(class_ids)).all()
+    ]
 
-    return db.query(LeaveRequest).filter(
+    requests = db.query(LeaveRequest).filter(
         LeaveRequest.student_id.in_(student_ids),
         LeaveRequest.status == "pending"
     ).order_by(LeaveRequest.created_at.desc()).all()
+
+    result = []
+    for r in requests:
+        result.append(LeaveRequestWithStudent(
+            id=r.id,
+            student_id=r.student_id,
+            student_name=r.student.user.name,
+            roll_number=r.student.roll_number,
+            reason=r.reason,
+            date_from=r.date_from,
+            date_to=r.date_to,
+            status=r.status,
+            reviewed_by=r.reviewed_by,
+            created_at=r.created_at
+        ))
+    return result
 
 @router.put("/{leave_id}/review", response_model=LeaveRequestResponse)
 def review_leave(
