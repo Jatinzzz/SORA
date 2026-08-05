@@ -6,11 +6,14 @@ from schemas import UserResponse
 from utils.security import require_role
 from models.student import Student
 from models.teacher import Teacher
-from schemas import VerifyUserRequest
+from schemas import VerifyUserRequest, CourseCreateRequest, TeacherReassignRequest, TeacherListItem
 from models.student import Student
 from models.student_class import StudentClass
 from models.class_ import Class
 from routes.analytics import calculate_student_score
+from models.class_ import Class
+from models.department import Department
+
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -47,7 +50,7 @@ def verify_user(
     if not existing:
         new_teacher = Teacher(
             user_id=user.id,
-            department=payload.department
+            department_id=payload.department_id
         )
         db.add(new_teacher)
 
@@ -123,3 +126,68 @@ def remove_student_from_course(
     db.delete(link)
     db.commit()
     return {"message": "Student removed from course successfully"}
+
+@router.get("/teachers", response_model=list[TeacherListItem])
+def list_teachers(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["admin"]))
+):
+    teachers = db.query(Teacher).join(User).filter(User.is_verified == True).all()
+    result = []
+    for t in teachers:
+        result.append(TeacherListItem(
+            id=t.id,
+            name=t.user.name,
+            email=t.user.email,
+            department_name=t.department_ref.name if t.department_ref else None
+        ))
+    return result
+
+
+@router.post("/departments/{department_id}/courses")
+def create_course(
+    department_id: int,
+    payload: CourseCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["admin"]))
+):
+    department = db.query(Department).filter(Department.id == department_id).first()
+    if not department:
+        raise HTTPException(status_code=404, detail="Department not found")
+
+    if payload.teacher_id:
+        teacher = db.query(Teacher).filter(Teacher.id == payload.teacher_id).first()
+        if not teacher:
+            raise HTTPException(status_code=404, detail="Teacher not found")
+
+    new_class = Class(
+        name=payload.name,
+        department_id=department_id,
+        teacher_id=payload.teacher_id
+    )
+    db.add(new_class)
+    db.commit()
+    db.refresh(new_class)
+
+    return {"message": "Course created successfully", "class_id": new_class.id}
+
+
+@router.put("/courses/{class_id}/reassign-teacher")
+def reassign_teacher(
+    class_id: int,
+    payload: TeacherReassignRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["admin"]))
+):
+    class_obj = db.query(Class).filter(Class.id == class_id).first()
+    if not class_obj:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    teacher = db.query(Teacher).filter(Teacher.id == payload.teacher_id).first()
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+
+    class_obj.teacher_id = payload.teacher_id
+    db.commit()
+
+    return {"message": f"Teacher reassigned successfully. All existing data for this course remains unchanged."}

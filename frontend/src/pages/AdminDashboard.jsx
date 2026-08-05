@@ -7,6 +7,7 @@ import {
   Settings,
   Users,
   X,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
@@ -37,9 +38,21 @@ export default function AdminDashboard() {
   const [viewingProfile, setViewingProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
+  // ── Manage Courses: create course + reassign teacher ──
+  const [teachers, setTeachers] = useState([]);
+  const [courseDept, setCourseDept] = useState("");
+  const [courseDeptCourses, setCourseDeptCourses] = useState([]);
+  const [newCourseName, setNewCourseName] = useState("");
+  const [newCourseTeacher, setNewCourseTeacher] = useState("");
+  const [courseMessage, setCourseMessage] = useState("");
+  const [courseError, setCourseError] = useState("");
+  const [reassigningCourseId, setReassigningCourseId] = useState(null);
+  const [reassignTeacherId, setReassignTeacherId] = useState("");
+
   useEffect(() => {
     fetchPendingUsers();
     fetchDepartments();
+    fetchTeachers();
   }, []);
 
   // ── Pending teacher approvals ──
@@ -68,7 +81,9 @@ export default function AdminDashboard() {
     e.preventDefault();
     setError("");
     try {
-      await api.put(`/admin/verify-user/${verifyingUserId}`, { department: department || null });
+      await api.put(`/admin/verify-user/${verifyingUserId}`, {
+        department_id: department ? parseInt(department) : null,
+      });
       setPendingUsers(pendingUsers.filter((u) => u.id !== verifyingUserId));
       setVerifyingUserId(null);
     } catch (err) {
@@ -146,6 +161,83 @@ export default function AdminDashboard() {
     setViewingProfile(null);
   };
 
+  // ── Manage Courses ──
+  const fetchTeachers = async () => {
+    try {
+      const res = await api.get("/admin/teachers");
+      setTeachers(res.data);
+    } catch (err) {
+      console.error("Failed to load teachers");
+    }
+  };
+
+  const handleCourseDeptSelect = async (deptId) => {
+    setCourseDept(deptId);
+    setCourseDeptCourses([]);
+    setCourseMessage("");
+    setCourseError("");
+    setReassigningCourseId(null);
+    if (!deptId) return;
+    try {
+      const res = await api.get(`/departments/${deptId}/courses`);
+      setCourseDeptCourses(res.data);
+    } catch (err) {
+      setCourseError("Failed to load courses for this department");
+    }
+  };
+
+  const createCourse = async (e) => {
+    e.preventDefault();
+    setCourseError("");
+    setCourseMessage("");
+    if (!courseDept || !newCourseName.trim()) {
+      setCourseError("Please select a department and enter a course name");
+      return;
+    }
+    try {
+      await api.post(`/admin/departments/${courseDept}/courses`, {
+        name: newCourseName,
+        teacher_id: newCourseTeacher ? parseInt(newCourseTeacher) : null,
+      });
+      setCourseMessage("Course created successfully");
+      setNewCourseName("");
+      setNewCourseTeacher("");
+      handleCourseDeptSelect(courseDept); // refresh list
+    } catch (err) {
+      setCourseError(err.response?.data?.detail || "Failed to create course");
+    }
+  };
+
+  const openReassignForm = (classId) => {
+    setReassigningCourseId(classId);
+    setReassignTeacherId("");
+    setCourseMessage("");
+    setCourseError("");
+  };
+
+  const cancelReassign = () => {
+    setReassigningCourseId(null);
+  };
+
+  const submitReassign = async (e) => {
+    e.preventDefault();
+    setCourseError("");
+    if (!reassignTeacherId) {
+      setCourseError("Please select a teacher");
+      return;
+    }
+    try {
+      await api.put(`/admin/courses/${reassigningCourseId}/reassign-teacher`, {
+        teacher_id: parseInt(reassignTeacherId),
+      });
+      setCourseMessage("Teacher reassigned successfully. Existing course data is unchanged.");
+      setReassigningCourseId(null);
+      handleCourseDeptSelect(courseDept); // refresh list
+    } catch (err) {
+      setCourseError(err.response?.data?.detail || "Failed to reassign teacher");
+    }
+  };
+
   return (
     <div className="dashboard-container">
       {/* Sidebar Navigation Panel */}
@@ -166,6 +258,12 @@ export default function AdminDashboard() {
             className={`menu-item-btn ${activeTab === "manage-students" ? "active" : ""}`}
           >
             <Users size={18} /> Manage Students
+          </button>
+          <button
+            onClick={() => setActiveTab("manage-courses")}
+            className={`menu-item-btn ${activeTab === "manage-courses" ? "active" : ""}`}
+          >
+            <BookOpen size={18} /> Manage Courses
           </button>
           <button
             onClick={() => setActiveTab("system-logs")}
@@ -255,13 +353,13 @@ export default function AdminDashboard() {
                 </p>
                 <form onSubmit={submitVerify} className="leave-form">
                   <div className="form-group">
-                    <label>Department Designation (Optional)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Department of Computing"
-                      value={department}
-                      onChange={(e) => setDepartment(e.target.value)}
-                    />
+                    <label>Department (Optional)</label>
+                    <select value={department} onChange={(e) => setDepartment(e.target.value)}>
+                      <option value="">-- No department --</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="form-footer">
                     <button type="submit" className="scan-button" style={{ maxWidth: "250px" }}>
@@ -427,6 +525,146 @@ export default function AdminDashboard() {
                   </>
                 )}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* ───────── Manage Courses Tab ───────── */}
+        {activeTab === "manage-courses" && (
+          <div className="overview-page-layout animate-fade-in">
+            <section className="card leave-section">
+              <div className="leave-header">
+                <div>
+                  <h3>Create a Course</h3>
+                  <p className="section-subtitle">
+                    Add a new course under an existing department and optionally assign a teacher.
+                  </p>
+                </div>
+              </div>
+
+              {courseError && (
+                <div className="status-banner error">
+                  <ShieldAlert size={18} /> {courseError}
+                </div>
+              )}
+              {courseMessage && (
+                <p style={{ color: "#15803d" }}>{courseMessage}</p>
+              )}
+
+              <form onSubmit={createCourse} className="leave-form">
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Department</label>
+                    <select value={courseDept} onChange={(e) => handleCourseDeptSelect(e.target.value)}>
+                      <option value="">-- Select department --</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Course Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Data Structures"
+                      value={newCourseName}
+                      onChange={(e) => setNewCourseName(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Assign Teacher (Optional)</label>
+                    <select value={newCourseTeacher} onChange={(e) => setNewCourseTeacher(e.target.value)}>
+                      <option value="">-- No teacher --</option>
+                      {teachers.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} {t.department_name ? `(${t.department_name})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-footer">
+                  <button type="submit" className="scan-button" style={{ maxWidth: "220px" }}>
+                    Create Course
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            {courseDept && (
+              <section className="card leave-section">
+                <div className="leave-header">
+                  <div>
+                    <h3>Existing Courses in this Department</h3>
+                    <p className="section-subtitle">
+                      Reassign a teacher without affecting existing sessions or attendance records.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="table-container">
+                  <table className="modern-table">
+                    <thead>
+                      <tr>
+                        <th>Course</th>
+                        <th>Current Teacher</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {courseDeptCourses.length === 0 ? (
+                        <tr>
+                          <td colSpan="3">
+                            <p className="empty-notice">No courses in this department yet.</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        courseDeptCourses.map((c) => (
+                          <>
+                            <tr key={c.id}>
+                              <td><strong>{c.name}</strong></td>
+                              <td>{c.teacher_name || "Unassigned"}</td>
+                              <td>
+                                {reassigningCourseId === c.id ? (
+                                  <button onClick={cancelReassign} className="table-action-btn cancel-btn">
+                                    Cancel
+                                  </button>
+                                ) : (
+                                  <button onClick={() => openReassignForm(c.id)} className="table-action-btn approve-btn">
+                                    Reassign Teacher
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                            {reassigningCourseId === c.id && (
+                              <tr>
+                                <td colSpan="3" style={{ background: "#f5f5f5", padding: "15px" }}>
+                                  <form onSubmit={submitReassign} style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                                    <select
+                                      value={reassignTeacherId}
+                                      onChange={(e) => setReassignTeacherId(e.target.value)}
+                                    >
+                                      <option value="">-- Select new teacher --</option>
+                                      {teachers.map((t) => (
+                                        <option key={t.id} value={t.id}>
+                                          {t.name} {t.department_name ? `(${t.department_name})` : ""}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <button type="submit" className="table-action-btn approve-btn">
+                                      Confirm
+                                    </button>
+                                  </form>
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             )}
           </div>
         )}

@@ -109,7 +109,7 @@ class LeaveReviewRequest(BaseModel):
     status: str  # "approved" or "rejected"
 
 class VerifyUserRequest(BaseModel):
-    department: Optional[str] = None    # required if role == teacher
+    department_id: Optional[int] = None    # required if role == teacher
 
 class ClassCreate(BaseModel):
     name: str
@@ -168,3 +168,15 @@ class OverallAttendanceScore(BaseModel):
     overall_percentage: float
     courses: list[StudentAttendanceScore]
 
+class CourseCreateRequest(BaseModel):
+    name: str
+    teacher_id: Optional[int] = None
+
+class TeacherReassignRequest(BaseModel):
+    teacher_id: int
+
+class TeacherListItem(BaseModel):
+    id: int
+    name: str
+    email: str
+    department_name: Optional[str] = None
