@@ -456,3 +456,89 @@ body {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Mobile responsiveness ── */
+@media (max-width: 768px) {
+  .dashboard-sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    z-index: auto;
+  }
+
+  .sidebar-brand {
+    margin-bottom: 0;
+  }
+
+  .sidebar-menu {
+    flex-direction: row;
+    flex-grow: 0;
+    gap: 4px;
+  }
+
+  .menu-item-btn, .logout-button {
+    font-size: 0;
+    gap: 0;
+    padding: 10px;
+    justify-content: center;
+  }
+
+  .menu-item-btn svg, .logout-button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .dashboard-content {
+    margin-left: 0;
+    padding: 16px;
+    max-width: 100%;
+  }
+
+  .content-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .content-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .qr-display-container {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .session-controls-group {
+    width: 100%;
+  }
+
+  .btn-row {
+    flex-direction: column;
+  }
+
+  .btn-row button {
+    width: 100%;
+  }
+
+  .score-box-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  select, input {
+    font-size: 16px;
+  }
+
+  .table-container {
+    max-height: 300px;
+  }
+}

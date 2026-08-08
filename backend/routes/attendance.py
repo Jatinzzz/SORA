@@ -226,3 +226,37 @@ def manual_mark_attendance(
 
     db.commit()
     return {"message": f"Attendance manually marked as {payload.status}"}
+
+@router.get("/session/{session_id}/status")
+def get_session_attendance_status(
+    session_id: int,
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(require_role(["teacher"]))
+):
+    session_obj = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session_obj:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    teacher = db.query(Teacher).filter(Teacher.user_id == current_user.id).first()
+    if not teacher or session_obj.teacher_id != teacher.id:
+        raise HTTPException(status_code=403, detail="Not authorized for this session")
+
+    links = db.query(StudentClass).filter(StudentClass.class_id == session_obj.class_id).all()
+    records = {
+        a.student_id: a for a in
+        db.query(Attendance).filter(Attendance.session_id == session_id).all()
+    }
+
+    result = []
+    for link in links:
+        s = link.student
+        record = records.get(s.id)
+        result.append({
+            "student_id": s.id,
+            "name": s.user.name,
+            "roll_number": s.roll_number,
+            "status": record.status if record else "not_marked",
+            "marked_by": record.marked_by if record else None,
+            "face_verified": record.face_verified if record else False,
+        })
+    return result

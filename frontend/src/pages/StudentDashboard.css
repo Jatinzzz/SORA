@@ -57,19 +57,24 @@ body {
   flex-grow: 1;
 }
 
-.menu-item {
+.menu-item-btn {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px;
   color: #94a3b8;
-  text-decoration: none;
+  background: transparent;
+  border: none;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
   border-radius: 8px;
   font-weight: 500;
+  font-size: 0.95rem;
   transition: all 0.2s ease;
 }
 
-.menu-item:hover, .menu-item.active {
+.menu-item-btn:hover, .menu-item-btn.active {
   color: #fff;
   background-color: rgba(255, 255, 255, 0.08);
 }
@@ -389,3 +394,80 @@ body {
 .status-pill.state-approved { background-color: #d1fae5; color: #065f46; }
 .status-pill.state-pending { background-color: #fef3c7; color: #92400e; }
 .status-pill.state-rejected { background-color: #fee2e2; color: #991b1b; }
+
+/* ── Mobile responsiveness ── */
+@media (max-width: 768px) {
+  .dashboard-sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+  }
+
+  .sidebar-brand {
+    margin-bottom: 0;
+  }
+
+  .sidebar-menu {
+    flex-direction: row;
+    flex-grow: 0;
+    gap: 4px;
+  }
+
+  .menu-item-btn, .logout-button {
+    font-size: 0;
+    gap: 0;
+    padding: 10px;
+    justify-content: center;
+  }
+
+  .menu-item-btn svg, .logout-button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .dashboard-content {
+    margin-left: 0;
+    padding: 16px;
+    max-width: 100%;
+  }
+
+  .content-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .content-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .btn-row {
+    flex-direction: column;
+  }
+
+  .btn-row button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-center-text .percentage-num {
+    font-size: 1.3rem;
+  }
+
+  .score-summary {
+    flex-wrap: wrap;
+  }
+
+  select, input {
+    font-size: 16px; /* prevents iOS auto-zoom on focus */
+  }
+}

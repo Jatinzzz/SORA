@@ -10,6 +10,7 @@ export default function StudentOnboarding({ onComplete }) {
   const [selectedCourses, setSelectedCourses] = useState([]); // array of course ids
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [attendanceStatus, setAttendanceStatus] = useState({}); // keyed by student_id
 
   useEffect(() => {
     fetchDepartments();
