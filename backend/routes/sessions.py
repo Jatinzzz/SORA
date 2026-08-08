@@ -52,12 +52,12 @@ def generate_qr(
     if not teacher or session_obj.teacher_id != teacher.id:
         raise HTTPException(status_code=403, detail="Not authorized for this session")
 
-    # 120 seconds validity, per your requirement
+    # 60 seconds validity, per your requirement
     token = create_access_token(
         data={"session_id": session_obj.id, "type": "qr"},
-        expires_minutes=2  # 120 seconds
+        expires_minutes=1  # 60 seconds
     )
-    expiry = datetime.now(timezone.utc) + timedelta(seconds=120)
+    expiry = datetime.now(timezone.utc) + timedelta(seconds=60)
 
     session_obj.qr_token = token
     session_obj.qr_expiry = expiry

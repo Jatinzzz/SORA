@@ -27,6 +27,10 @@ export default function TeacherDashboard() {
   // Track current section view ('overview' vs 'manage-students')
   const [activeTab, setActiveTab] = useState("overview");
   const intervalRef = useRef(null);
+  const statusIntervalRef = useRef(null);
+
+  // ── Live attendance status for the active session's roster ──
+  const [attendanceStatus, setAttendanceStatus] = useState({}); // keyed by student_id
 
   // ── Manage Students (scoped to teacher's own classes) ──
   const [manageSelectedClass, setManageSelectedClass] = useState("");
@@ -38,7 +42,10 @@ export default function TeacherDashboard() {
   useEffect(() => {
     fetchClasses();
     fetchPendingLeaves();
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      clearInterval(intervalRef.current);
+      clearInterval(statusIntervalRef.current);
+    };
   }, []);
 
   const fetchClasses = async () => {
@@ -70,10 +77,17 @@ export default function TeacherDashboard() {
       setSession(res.data);
       await fetchStudents(selectedClass);
       generateQR(res.data.id);
+      fetchAttendanceStatus(res.data.id);
 
       intervalRef.current = setInterval(() => {
         generateQR(res.data.id);
-      }, 120000);
+      }, 60000);
+
+      // Poll attendance status more frequently, since students may self-verify
+      // independently at any moment while the session is active
+      statusIntervalRef.current = setInterval(() => {
+        fetchAttendanceStatus(res.data.id);
+      }, 10000); // every 10 seconds
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to start session");
     }
@@ -90,20 +104,44 @@ export default function TeacherDashboard() {
 
   const endSession = () => {
     clearInterval(intervalRef.current);
+    clearInterval(statusIntervalRef.current);
     setSession(null);
     setQrData(null);
     setStudents([]);
+    setAttendanceStatus({});
     if (selectedClass) fetchClassScores(selectedClass);
   };
 
+  // ── Live attendance status ──
+  const fetchAttendanceStatus = async (sessionId) => {
+    try {
+      const res = await api.get(`/attendance/session/${sessionId}/status`);
+      const statusMap = {};
+      res.data.forEach((s) => {
+        statusMap[s.student_id] = s;
+      });
+      setAttendanceStatus(statusMap);
+    } catch (err) {
+      console.error("Failed to load attendance status");
+    }
+  };
+
   const handleManualMark = async (studentId, status) => {
+    const current = attendanceStatus[studentId];
+    if (current && current.marked_by === "student_scan" && current.face_verified) {
+      const confirmOverride = window.confirm(
+        `${current.name} already self-verified via QR + face scan. Overriding will remove that verification record. Continue?`
+      );
+      if (!confirmOverride) return;
+    }
+
     try {
       await api.post("/attendance/manual-mark", {
         session_id: session.id,
         student_id: studentId,
         status: status,
       });
-      alert(`Marked as ${status}`);
+      fetchAttendanceStatus(session.id);
     } catch (err) {
       alert(err.response?.data?.detail || "Failed to mark attendance");
     }
@@ -275,38 +313,62 @@ export default function TeacherDashboard() {
                         </div>
                         <div className="qr-metadata">
                           <p>Expires: <strong>{new Date(qrData.qr_expiry).toLocaleTimeString()}</strong></p>
-                          <span className="refresh-notice">Auto-refreshes every 120 seconds</span>
+                          <span className="refresh-notice">Auto-refreshes every 60 seconds</span>
                         </div>
                       </div>
                     )}
 
-                    <h4>Class Roster</h4>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h4 style={{ margin: 0, borderTop: "none", paddingTop: 0 }}>Class Roster</h4>
+                      <button
+                        onClick={() => fetchAttendanceStatus(session.id)}
+                        className="btn-secondary"
+                        style={{ padding: "6px 12px", fontSize: "0.8rem" }}
+                      >
+                        Refresh Status
+                      </button>
+                    </div>
                     <div className="table-container text-table">
                       <table className="modern-table">
                         <thead>
                           <tr>
                             <th>Name</th>
                             <th>Roll No.</th>
+                            <th>Status</th>
                             <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {students.map((s) => (
-                            <tr key={s.student_id}>
-                              <td>{s.name}</td>
-                              <td>{s.roll_number}</td>
-                              <td>
-                                <div className="btn-row">
-                                  <button onClick={() => handleManualMark(s.student_id, "present")} className="table-action-btn present-btn">
-                                    Present
-                                  </button>
-                                  <button onClick={() => handleManualMark(s.student_id, "absent")} className="table-action-btn absent-btn">
-                                    Absent
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
+                          {students.map((s) => {
+                            const st = attendanceStatus[s.student_id];
+                            return (
+                              <tr key={s.student_id}>
+                                <td>{s.name}</td>
+                                <td>{s.roll_number}</td>
+                                <td>
+                                  {!st || st.status === "not_marked" ? (
+                                    <span className="status-pill">Not Marked</span>
+                                  ) : st.status === "present" ? (
+                                    <span className="status-pill state-approved">
+                                      Present {st.marked_by === "student_scan" ? "(Self-verified)" : "(Manual)"}
+                                    </span>
+                                  ) : (
+                                    <span className="status-pill state-rejected">Absent</span>
+                                  )}
+                                </td>
+                                <td>
+                                  <div className="btn-row">
+                                    <button onClick={() => handleManualMark(s.student_id, "present")} className="table-action-btn present-btn">
+                                      Present
+                                    </button>
+                                    <button onClick={() => handleManualMark(s.student_id, "absent")} className="table-action-btn absent-btn">
+                                      Absent
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
