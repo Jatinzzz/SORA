@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import api from "../api/axios";
 import FaceEnrollCapture from "../components/FaceEnrollCapture";
+import "./StudentOnboarding.css";
 
 export default function StudentOnboarding({ onComplete }) {
   const [stage, setStage] = useState("department"); // department -> face -> done
