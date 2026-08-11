@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import {
+  LogOut,
+  PlayCircle,
+  Award,
+  ShieldAlert,
+  Users,
+  ClipboardList,
+  X,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
+import "./TeacherDashboard.css";
 
 export default function TeacherDashboard() {
   const { user, logout } = useAuth();
@@ -12,15 +22,30 @@ export default function TeacherDashboard() {
   const [students, setStudents] = useState([]);
   const [error, setError] = useState("");
   const [pendingLeaves, setPendingLeaves] = useState([]);
-  const [unassignedStudents, setUnassignedStudents] = useState([]);
-  const [newClassName, setNewClassName] = useState("");
+  const [classScores, setClassScores] = useState(null);
+
+  // Track current section view ('overview' vs 'manage-students')
+  const [activeTab, setActiveTab] = useState("overview");
   const intervalRef = useRef(null);
+  const statusIntervalRef = useRef(null);
+
+  // ── Live attendance status for the active session's roster ──
+  const [attendanceStatus, setAttendanceStatus] = useState({}); // keyed by student_id
+
+  // ── Manage Students (scoped to teacher's own classes) ──
+  const [manageSelectedClass, setManageSelectedClass] = useState("");
+  const [manageStudents, setManageStudents] = useState([]);
+  const [manageError, setManageError] = useState("");
+  const [viewingProfile, setViewingProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     fetchClasses();
     fetchPendingLeaves();
-    fetchUnassigned();
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      clearInterval(intervalRef.current);
+      clearInterval(statusIntervalRef.current);
+    };
   }, []);
 
   const fetchClasses = async () => {
@@ -41,20 +66,6 @@ export default function TeacherDashboard() {
     }
   };
 
-  // ── Class creation ──
-  const createClass = async (e) => {
-    e.preventDefault();
-    if (!newClassName.trim()) return;
-    try {
-      await api.post("/classes/create", { name: newClassName });
-      setNewClassName("");
-      fetchClasses();
-      alert("Class created successfully");
-    } catch (err) {
-      alert(err.response?.data?.detail || "Failed to create class");
-    }
-  };
-
   const startSession = async () => {
     if (!selectedClass) {
       setError("Please select a class first");
@@ -66,10 +77,17 @@ export default function TeacherDashboard() {
       setSession(res.data);
       await fetchStudents(selectedClass);
       generateQR(res.data.id);
+      fetchAttendanceStatus(res.data.id);
 
       intervalRef.current = setInterval(() => {
         generateQR(res.data.id);
-      }, 120000); // 120 seconds
+      }, 60000);
+
+      // Poll attendance status more frequently, since students may self-verify
+      // independently at any moment while the session is active
+      statusIntervalRef.current = setInterval(() => {
+        fetchAttendanceStatus(res.data.id);
+      }, 10000); // every 10 seconds
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to start session");
     }
@@ -86,25 +104,49 @@ export default function TeacherDashboard() {
 
   const endSession = () => {
     clearInterval(intervalRef.current);
+    clearInterval(statusIntervalRef.current);
     setSession(null);
     setQrData(null);
     setStudents([]);
+    setAttendanceStatus({});
+    if (selectedClass) fetchClassScores(selectedClass);
+  };
+
+  // ── Live attendance status ──
+  const fetchAttendanceStatus = async (sessionId) => {
+    try {
+      const res = await api.get(`/attendance/session/${sessionId}/status`);
+      const statusMap = {};
+      res.data.forEach((s) => {
+        statusMap[s.student_id] = s;
+      });
+      setAttendanceStatus(statusMap);
+    } catch (err) {
+      console.error("Failed to load attendance status");
+    }
   };
 
   const handleManualMark = async (studentId, status) => {
+    const current = attendanceStatus[studentId];
+    if (current && current.marked_by === "student_scan" && current.face_verified) {
+      const confirmOverride = window.confirm(
+        `${current.name} already self-verified via QR + face scan. Overriding will remove that verification record. Continue?`
+      );
+      if (!confirmOverride) return;
+    }
+
     try {
       await api.post("/attendance/manual-mark", {
         session_id: session.id,
         student_id: studentId,
         status: status,
       });
-      alert(`Marked as ${status}`);
+      fetchAttendanceStatus(session.id);
     } catch (err) {
       alert(err.response?.data?.detail || "Failed to mark attendance");
     }
   };
 
-  // ── Leave management ──
   const fetchPendingLeaves = async () => {
     try {
       const res = await api.get("/leave/pending");
@@ -123,168 +165,455 @@ export default function TeacherDashboard() {
     }
   };
 
-  // ── Unassigned students ──
-  const fetchUnassigned = async () => {
-    try {
-      const res = await api.get("/classes/unassigned-students");
-      setUnassignedStudents(res.data);
-    } catch (err) {
-      console.error("Failed to load unassigned students");
-    }
-  };
-
-  const assignStudent = async (studentId, classId) => {
+  const fetchClassScores = async (classId) => {
     if (!classId) {
-      alert("Please select a class first");
+      setClassScores(null);
       return;
     }
     try {
-      await api.put(`/classes/${classId}/assign-student/${studentId}`);
-      setUnassignedStudents(unassignedStudents.filter((s) => s.student_id !== studentId));
-      fetchClasses();
-      alert("Student assigned successfully");
+      const res = await api.get(`/analytics/class/${classId}`);
+      setClassScores(res.data);
     } catch (err) {
-      alert(err.response?.data?.detail || "Failed to assign student");
+      console.error("Failed to load class scores");
     }
   };
 
+  const handleClassChange = (classId) => {
+    setSelectedClass(classId);
+    fetchClassScores(classId);
+  };
+
+  // ── Manage Students ──
+  const handleManageClassSelect = async (classId) => {
+    setManageSelectedClass(classId);
+    setManageError("");
+    setViewingProfile(null);
+    if (!classId) {
+      setManageStudents([]);
+      return;
+    }
+    try {
+      const res = await api.get(`/classes/${classId}/students`);
+      setManageStudents(res.data);
+    } catch (err) {
+      setManageError("Failed to load students for this course");
+    }
+  };
+
+  const handleRemoveStudent = async (studentId, studentName) => {
+    if (!window.confirm(`Remove ${studentName} from this course?`)) return;
+    try {
+      await api.delete(`/classes/${manageSelectedClass}/student/${studentId}`);
+      setManageStudents(manageStudents.filter((s) => s.student_id !== studentId));
+      if (viewingProfile && viewingProfile.student_id === studentId) {
+        setViewingProfile(null);
+      }
+    } catch (err) {
+      setManageError(err.response?.data?.detail || "Failed to remove student");
+    }
+  };
+
+  const handleViewProfile = async (studentId) => {
+    setProfileLoading(true);
+    setViewingProfile(null);
+    try {
+      const res = await api.get(`/classes/${manageSelectedClass}/student/${studentId}/profile`);
+      setViewingProfile(res.data);
+    } catch (err) {
+      setManageError("Failed to load student profile");
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const closeProfile = () => {
+    setViewingProfile(null);
+  };
+
   return (
-    <div style={{ maxWidth: "700px", margin: "50px auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h2>Teacher Dashboard</h2>
-        <button onClick={logout}>Logout</button>
-      </div>
-      <p>Welcome, {user.name}</p>
-
-      {error && <p style={{ color: "red" }}>{error}</p>}
-
-      <h3>Create a New Class</h3>
-      <form onSubmit={createClass} style={{ marginBottom: "20px" }}>
-        <input
-          type="text"
-          placeholder="e.g. Computer Science - Section B"
-          value={newClassName}
-          onChange={(e) => setNewClassName(e.target.value)}
-          required
-        />
-        <button type="submit" style={{ marginLeft: "10px" }}>Create Class</button>
-      </form>
-
-      {!session ? (
-        <div>
-          <h3>Start a Session</h3>
-          <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}>
-            <option value="">-- Select a class --</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <button onClick={startSession} style={{ marginLeft: "10px" }}>
-            Start Session
+    <div className="dashboard-container">
+      {/* Sidebar Navigation Panel */}
+      <aside className="dashboard-sidebar">
+        <div className="sidebar-brand">
+          <Award className="brand-icon" />
+          <span>SORA</span>
+        </div>
+        <nav className="sidebar-menu">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`menu-item-btn ${activeTab === "overview" ? "active" : ""}`}
+          >
+            <ClipboardList size={18} /> Overview & Leaves
           </button>
-        </div>
-      ) : (
-        <div>
-          <h3>Session Active</h3>
-          <button onClick={endSession}>End Session</button>
+          <button
+            onClick={() => setActiveTab("manage-students")}
+            className={`menu-item-btn ${activeTab === "manage-students" ? "active" : ""}`}
+          >
+            <Users size={18} /> Manage Students
+          </button>
+        </nav>
+        <button className="logout-button" onClick={logout}>
+          <LogOut size={18} /> Logout
+        </button>
+      </aside>
 
-          {qrData && (
-            <div style={{ margin: "20px 0" }}>
-              <QRCodeSVG value={qrData.qr_token} size={200} />
-              <p>Expires: {new Date(qrData.qr_expiry).toLocaleTimeString()}</p>
-              <p style={{ fontSize: "12px", color: "gray" }}>Auto-refreshes every 120 seconds</p>
+      {/* Main Layout Area */}
+      <main className="dashboard-content">
+        <header className="content-header">
+          <div>
+            <h1>Teacher Dashboard</h1>
+            <p className="welcome-text">Welcome back</p>
+          </div>
+        </header>
+
+        {error && (
+          <div className="status-banner error">
+            <ShieldAlert size={18} /> {error}
+          </div>
+        )}
+
+        {/* Tab Subview Switcher */}
+        {activeTab === "overview" ? (
+          <div className="overview-page-layout">
+            <div className="dashboard-grid">
+
+              {/* Session Control Box */}
+              <div className="card action-card">
+                {!session ? (
+                  <div>
+                    <h3>Start a Session</h3>
+                    <p className="action-desc">Select an authorized course partition grid below to roll out live QR captures.</p>
+                    <div className="session-controls-group">
+                      <select
+                        value={selectedClass}
+                        onChange={(e) => handleClassChange(e.target.value)}
+                        className="modern-select"
+                      >
+                        <option value="">-- Select a class --</option>
+                        {classes.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                      <button onClick={startSession} className="scan-button">
+                        <PlayCircle size={18} /> Start Session
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="active-session-wrapper">
+                    <div className="session-status-header">
+                      <h3>Session Active</h3>
+                      <button onClick={endSession} className="btn-secondary danger-btn">End Session</button>
+                    </div>
+
+                    {qrData && (
+                      <div className="qr-display-container">
+                        <div className="qr-svg-card">
+                          <QRCodeSVG value={qrData.qr_token} size={180} />
+                        </div>
+                        <div className="qr-metadata">
+                          <p>Expires: <strong>{new Date(qrData.qr_expiry).toLocaleTimeString()}</strong></p>
+                          <span className="refresh-notice">Auto-refreshes every 60 seconds</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h4 style={{ margin: 0, borderTop: "none", paddingTop: 0 }}>Class Roster</h4>
+                      <button
+                        onClick={() => fetchAttendanceStatus(session.id)}
+                        className="btn-secondary"
+                        style={{ padding: "6px 12px", fontSize: "0.8rem" }}
+                      >
+                        Refresh Status
+                      </button>
+                    </div>
+                    <div className="table-container text-table">
+                      <table className="modern-table">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Roll No.</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {students.map((s) => {
+                            const st = attendanceStatus[s.student_id];
+                            return (
+                              <tr key={s.student_id}>
+                                <td>{s.name}</td>
+                                <td>{s.roll_number}</td>
+                                <td>
+                                  {!st || st.status === "not_marked" ? (
+                                    <span className="status-pill">Not Marked</span>
+                                  ) : st.status === "present" ? (
+                                    <span className="status-pill state-approved">
+                                      Present {st.marked_by === "student_scan" ? "(Self-verified)" : "(Manual)"}
+                                    </span>
+                                  ) : (
+                                    <span className="status-pill state-rejected">Absent</span>
+                                  )}
+                                </td>
+                                <td>
+                                  <div className="btn-row">
+                                    <button onClick={() => handleManualMark(s.student_id, "present")} className="table-action-btn present-btn">
+                                      Present
+                                    </button>
+                                    <button onClick={() => handleManualMark(s.student_id, "absent")} className="table-action-btn absent-btn">
+                                      Absent
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Attendance Records Rollbox */}
+              <div className="card score-card">
+                <h3>Attendance Statistics</h3>
+                {classScores ? (
+                  <div>
+                    <div className="score-box-meta">
+                      <p>Class Matrix: <strong>{classScores.class_name}</strong></p>
+                      <div className="stat-pill total">Total Sessions: {classScores.total_sessions}</div>
+                    </div>
+                    <div className="table-container">
+                      <table className="modern-table">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Roll No.</th>
+                            <th>P</th>
+                            <th>A</th>
+                            <th>%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {classScores.students.map((s) => (
+                            <tr
+                              key={s.student_id}
+                              className={s.attendance_percentage < 75 ? "alert-row" : ""}
+                            >
+                              <td>{s.name}</td>
+                              <td>{s.roll_number}</td>
+                              <td><span className="text-present">{s.present_count}</span></td>
+                              <td><span className="text-absent">{s.absent_count}</span></td>
+                              <td>
+                                <span className={`status-pill ${s.attendance_percentage < 75 ? "state-rejected" : "state-approved"}`}>
+                                  {s.attendance_percentage}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="empty-notice text-center">Select an active class stream to query cumulative records.</p>
+                )}
+              </div>
             </div>
-          )}
 
-          <h3>Class Roster</h3>
-          <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Roll No.</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((s) => (
-                <tr key={s.student_id}>
-                  <td>{s.name}</td>
-                  <td>{s.roll_number}</td>
-                  <td>
-                    <button onClick={() => handleManualMark(s.student_id, "present")}>
-                      Mark Present
-                    </button>{" "}
-                    <button onClick={() => handleManualMark(s.student_id, "absent")}>
-                      Mark Absent
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            {/* Pending Leave Requests Section */}
+            <section className="card leave-section">
+              <div className="leave-header">
+                <div>
+                  <h3>Pending Leave Requests</h3>
+                  <p className="section-subtitle">Process incoming medical waivers and exception logs submitted by students.</p>
+                </div>
+              </div>
 
-      <hr style={{ margin: "30px 0" }} />
+              <div className="table-container">
+                {pendingLeaves.length === 0 ? (
+                  <p className="empty-notice">No leave exceptions waiting for approval logs.</p>
+                ) : (
+                  <table className="modern-table">
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Roll No.</th>
+                        <th>Reason</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingLeaves.map((l) => (
+                        <tr key={l.id}>
+                          <td><strong>{l.student_name}</strong></td>
+                          <td>{l.roll_number}</td>
+                          <td>{l.reason}</td>
+                          <td>{l.date_from}</td>
+                          <td>{l.date_to}</td>
+                          <td>
+                            <div className="btn-row">
+                              <button onClick={() => reviewLeave(l.id, "approved")} className="table-action-btn present-btn">
+                                Approve
+                              </button>
+                              <button onClick={() => reviewLeave(l.id, "rejected")} className="table-action-btn absent-btn">
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </section>
+          </div>
+        ) : (
+          /* Manage Students Subview */
+          <div className="overview-page-layout animate-fade-in">
+            <section className="card leave-section">
+              <div className="leave-header">
+                <div>
+                  <h3>Manage Students</h3>
+                  <p className="section-subtitle">
+                    View profiles and attendance, or remove students from courses you teach.
+                  </p>
+                </div>
+              </div>
 
-      <h3>Unassigned Students</h3>
-      {unassignedStudents.length === 0 && <p>No unassigned students.</p>}
-      <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Roll No.</th>
-            <th>Assign to</th>
-          </tr>
-        </thead>
-        <tbody>
-          {unassignedStudents.map((s) => (
-            <tr key={s.student_id}>
-              <td>{s.name}</td>
-              <td>{s.roll_number}</td>
-              <td>
+              {manageError && (
+                <div className="status-banner error">
+                  <ShieldAlert size={18} /> {manageError}
+                </div>
+              )}
+
+              <div className="session-controls-group" style={{ marginBottom: "16px" }}>
                 <select
-                  onChange={(e) => assignStudent(s.student_id, e.target.value)}
-                  defaultValue=""
+                  value={manageSelectedClass}
+                  onChange={(e) => handleManageClassSelect(e.target.value)}
+                  className="modern-select"
                 >
-                  <option value="" disabled>-- Select class --</option>
+                  <option value="">-- Select a course --</option>
                   {classes.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </div>
 
-      <hr style={{ margin: "30px 0" }} />
+              {manageSelectedClass && (
+                <div className="table-container">
+                  <table className="modern-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Roll No.</th>
+                        <th>Email</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {manageStudents.length === 0 ? (
+                        <tr>
+                          <td colSpan="4">
+                            <p className="empty-notice">No students enrolled in this course.</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        manageStudents.map((s) => (
+                          <tr key={s.student_id}>
+                            <td><strong>{s.name}</strong></td>
+                            <td>{s.roll_number}</td>
+                            <td>{s.email}</td>
+                            <td>
+                              <div className="btn-row">
+                                <button
+                                  onClick={() => handleViewProfile(s.student_id)}
+                                  className="table-action-btn present-btn"
+                                >
+                                  View Profile
+                                </button>
+                                <button
+                                  onClick={() => handleRemoveStudent(s.student_id, s.name)}
+                                  className="table-action-btn absent-btn"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
 
-      <h3>Pending Leave Requests</h3>
-      {pendingLeaves.length === 0 && <p>No pending leave requests.</p>}
-      <table border="1" cellPadding="8" style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th>Reason</th>
-            <th>From</th>
-            <th>To</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pendingLeaves.map((l) => (
-            <tr key={l.id}>
-              <td>{l.reason}</td>
-              <td>{l.date_from}</td>
-              <td>{l.date_to}</td>
-              <td>
-                <button onClick={() => reviewLeave(l.id, "approved")}>Approve</button>{" "}
-                <button onClick={() => reviewLeave(l.id, "rejected")}>Reject</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            {/* Student Profile Panel */}
+            {(profileLoading || viewingProfile) && (
+              <div className="card action-card animate-fade-in">
+                {profileLoading ? (
+                  <p className="loading-text">Loading profile...</p>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h3 style={{ margin: 0 }}>{viewingProfile.name}'s Profile</h3>
+                      <button onClick={closeProfile} className="btn-secondary">
+                        <X size={16} style={{ verticalAlign: "middle" }} /> Close
+                      </button>
+                    </div>
+
+                    <table className="modern-table" style={{ marginTop: "14px" }}>
+                      <tbody>
+                        <tr><td><strong>Email</strong></td><td>{viewingProfile.email}</td></tr>
+                        <tr><td><strong>Roll Number</strong></td><td>{viewingProfile.roll_number}</td></tr>
+                        <tr><td><strong>Department</strong></td><td>{viewingProfile.department_name || "Not set"}</td></tr>
+                        <tr><td><strong>Face Enrolled</strong></td><td>{viewingProfile.face_enrolled ? "Yes" : "No"}</td></tr>
+                      </tbody>
+                    </table>
+
+                    <h4 style={{ marginTop: "18px" }}>
+                      Overall Attendance: {viewingProfile.overall_percentage}%
+                      {" "}({viewingProfile.present_count} / {viewingProfile.total_sessions} sessions)
+                    </h4>
+
+                    <h4 style={{ marginTop: "18px" }}>By Course</h4>
+                    {viewingProfile.courses.length === 0 ? (
+                      <p className="empty-notice">Not enrolled in any course.</p>
+                    ) : (
+                      <table className="modern-table">
+                        <thead>
+                          <tr>
+                            <th>Course</th>
+                            <th>Present</th>
+                            <th>Total</th>
+                            <th>Percentage</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {viewingProfile.courses.map((c, idx) => (
+                            <tr key={idx}>
+                              <td>{c.class_name}</td>
+                              <td>{c.present_count}</td>
+                              <td>{c.total_sessions}</td>
+                              <td>{c.attendance_percentage}%</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

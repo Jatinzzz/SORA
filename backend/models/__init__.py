@@ -5,3 +5,5 @@ from .student import Student
 from .session import Session
 from .attendance import Attendance
 from .leave_request import LeaveRequest
+from .department import Department
+from .student_class import StudentClass

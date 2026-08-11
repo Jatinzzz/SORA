@@ -90,13 +90,26 @@ class LeaveRequestResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class LeaveRequestWithStudent(BaseModel):
+    id: int
+    student_id: int
+    student_name: str
+    roll_number: str
+    reason: str
+    date_from: date
+    date_to: date
+    status: str
+    reviewed_by: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class LeaveReviewRequest(BaseModel):
     status: str  # "approved" or "rejected"
 
 class VerifyUserRequest(BaseModel):
-    roll_number: Optional[str] = None   # required if role == student
-    class_id: Optional[int] = None      # optional, can assign later
-    department: Optional[str] = None    # required if role == teacher
+    department_id: Optional[int] = None    # required if role == teacher
 
 class ClassCreate(BaseModel):
     name: str
@@ -108,3 +121,62 @@ class ClassResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class StudentAttendanceScore(BaseModel):
+    student_id: int
+    name: str
+    roll_number: str
+    class_name: Optional[str] = None
+    total_sessions: int
+    present_count: int
+    absent_count: int
+    attendance_percentage: float
+
+class ClassAttendanceScore(BaseModel):
+    class_id: int
+    class_name: str
+    total_sessions: int
+    students: list[StudentAttendanceScore]
+
+class DepartmentResponse(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+class DepartmentCreate(BaseModel):
+    name: str
+
+class CourseResponse(BaseModel):
+    id: int
+    name: str
+    teacher_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class StudentOnboardRequest(BaseModel):
+    department_id: int
+    class_id: int
+
+class OverallAttendanceScore(BaseModel):
+    student_id: int
+    total_sessions: int
+    present_count: int
+    absent_count: int
+    overall_percentage: float
+    courses: list[StudentAttendanceScore]
+
+class CourseCreateRequest(BaseModel):
+    name: str
+    teacher_id: Optional[int] = None
+
+class TeacherReassignRequest(BaseModel):
+    teacher_id: int
+
+class TeacherListItem(BaseModel):
+    id: int
+    name: str
+    email: str
+    department_name: Optional[str] = None
