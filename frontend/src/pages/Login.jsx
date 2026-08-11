@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
@@ -47,6 +47,9 @@ export default function Login() {
         {error && <p style={{ color: "red" }}>{error}</p>}
         <button type="submit">Login</button>
       </form>
+      <p style={{ textAlign: "center", marginTop: "16px", fontSize: "0.9rem" }}>
+        Don't have an account? <Link to="/register">Sign up</Link>
+      </p>
     </div>
   );
 }

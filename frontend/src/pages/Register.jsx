@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
 export default function Register() {
@@ -131,6 +131,23 @@ export default function Register() {
         .register-button:active {
           background: #3730a3;
         }
+
+        .register-login-link {
+          text-align: center;
+          margin-top: 18px;
+          font-size: 0.9rem;
+          color: #374151;
+        }
+
+        .register-login-link a {
+          color: #4f46e5;
+          font-weight: 600;
+          text-decoration: none;
+        }
+
+        .register-login-link a:hover {
+          text-decoration: underline;
+        }
       `}</style>
 
       <div className="register-card">
@@ -143,29 +160,34 @@ export default function Register() {
             {" "}Redirecting to login...
           </p>
         ) : (
-          <form onSubmit={handleSubmit} className="register-form">
-            <div className="register-field">
-              <label>Name</label>
-              <input name="name" value={formData.name} onChange={handleChange} required />
-            </div>
-            <div className="register-field">
-              <label>Email</label>
-              <input type="email" name="email" value={formData.email} onChange={handleChange} required />
-            </div>
-            <div className="register-field">
-              <label>Password</label>
-              <input type="password" name="password" value={formData.password} onChange={handleChange} required />
-            </div>
-            <div className="register-field">
-              <label>Role</label>
-              <select name="role" value={formData.role} onChange={handleChange}>
-                <option value="student">Student</option>
-                <option value="teacher">Teacher</option>
-              </select>
-            </div>
-            {error && <p className="register-error">{error}</p>}
-            <button type="submit" className="register-button">Register</button>
-          </form>
+          <>
+            <form onSubmit={handleSubmit} className="register-form">
+              <div className="register-field">
+                <label>Name</label>
+                <input name="name" value={formData.name} onChange={handleChange} required />
+              </div>
+              <div className="register-field">
+                <label>Email</label>
+                <input type="email" name="email" value={formData.email} onChange={handleChange} required />
+              </div>
+              <div className="register-field">
+                <label>Password</label>
+                <input type="password" name="password" value={formData.password} onChange={handleChange} required />
+              </div>
+              <div className="register-field">
+                <label>Role</label>
+                <select name="role" value={formData.role} onChange={handleChange}>
+                  <option value="student">Student</option>
+                  <option value="teacher">Teacher</option>
+                </select>
+              </div>
+              {error && <p className="register-error">{error}</p>}
+              <button type="submit" className="register-button">Register</button>
+            </form>
+            <p className="register-login-link">
+              Already have an account? <Link to="/login">Log in</Link>
+            </p>
+          </>
         )}
       </div>
     </div>
