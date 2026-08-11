@@ -1,0 +1,376 @@
+.onboarding-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+  padding: 30px 20px;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 560px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 40px;
+  box-sizing: border-box;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.10);
+}
+
+.onboarding-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.onboarding-header h2 {
+  margin: 0 0 10px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.onboarding-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+
+/* Error Message */
+
+.onboarding-error {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 14px;
+}
+
+
+/* Step Sections */
+
+.step-section {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.step-number {
+  min-width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #4f46e5;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-content h3 {
+  margin: 5px 0 15px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+
+/* Department Select */
+
+.onboarding-select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 15px;
+  outline: none;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.onboarding-select:focus {
+  border-color: #4f46e5;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+
+/* Course Section */
+
+.course-section {
+  margin-top: 10px;
+}
+
+.course-description {
+  margin: -5px 0 15px;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.no-courses {
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+
+/* Course List */
+
+.course-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.course-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.course-item:hover {
+  border-color: #a5b4fc;
+  background: #f8faff;
+}
+
+.course-item.course-selected {
+  border-color: #4f46e5;
+  background: #eef2ff;
+}
+
+
+/* Hide Default Checkbox */
+
+.course-item input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+
+/* Custom Checkbox */
+
+.course-checkbox {
+  width: 19px;
+  height: 19px;
+  border: 2px solid #cbd5e1;
+  border-radius: 5px;
+  background: #ffffff;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.course-item.course-selected .course-checkbox {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  position: relative;
+}
+
+.course-item.course-selected .course-checkbox::after {
+  content: "✓";
+  position: absolute;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  left: 3px;
+  top: -1px;
+}
+
+
+/* Course Information */
+
+.course-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.course-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.teacher-name {
+  font-size: 12px;
+  color: #64748b;
+}
+
+
+/* Button */
+
+.onboarding-actions {
+  margin-top: 25px;
+}
+
+.onboarding-button {
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.onboarding-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4338ca, #4f46e5);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.30);
+}
+
+.onboarding-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.onboarding-button:disabled {
+  background: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+
+/* Face Enrollment */
+
+.face-section {
+  margin-top: 10px;
+}
+
+.step-indicator {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.step-indicator h3 {
+  margin: 5px 0 8px;
+  font-size: 18px;
+  color: #1e293b;
+}
+
+.step-indicator p {
+  margin: 0;
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.face-capture-container {
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+
+/* Setup Complete */
+
+.setup-complete {
+  text-align: center;
+  padding: 15px 0 5px;
+}
+
+.success-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #16a34a;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.setup-complete h3 {
+  margin: 0 0 10px;
+  font-size: 22px;
+  color: #1e293b;
+}
+
+.setup-complete p {
+  margin: 0 auto 8px;
+  max-width: 400px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #64748b;
+}
+
+.setup-complete .redirect-message {
+  color: #15803d;
+  font-weight: 500;
+  margin-bottom: 22px;
+}
+
+
+/* Responsive */
+
+@media (max-width: 600px) {
+  .onboarding-page {
+    padding: 15px;
+    align-items: flex-start;
+  }
+
+  .onboarding-card {
+    margin-top: 20px;
+    padding: 30px 22px;
+  }
+
+  .onboarding-header h2 {
+    font-size: 24px;
+  }
+
+  .step-section {
+    gap: 10px;
+  }
+
+  .step-number {
+    min-width: 30px;
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+  }
+
+  .course-item {
+    padding: 12px;
+  }
+
+  .face-capture-container {
+    padding: 15px;
+  }
+}
+
