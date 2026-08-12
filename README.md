@@ -6,10 +6,15 @@ The Smart Attendance System (SORA) is a full-stack web application designed to a
 The system supports three roles — Admin, Teacher, and Student — each with a dedicated dashboard. Teachers create courses and start attendance sessions, which generate a secure, auto-refreshing QR code. Students scan this QR code and complete a live facial verification against their enrolled face before their attendance is recorded — ensuring that attendance can only be marked by the actual student physically present, not a proxy. The system also supports manual attendance override for exceptional cases, a leave management workflow, and automatic attendance percentage calculation per course and overall, viewable by students, teachers, and admins.
 
 Tools, Libraries & Technologies Used
+
 Frontend
+
 Tool	Purpose	Why it was used
+
 React.js (Vite)	Building the user interface across all three dashboards	Component-based architecture made it easy to build reusable, role-specific dashboards; Vite offers a much faster development server than older tooling
+
 React Router	Client-side routing and protected routes	Enables role-based navigation (e.g., redirecting students away from the teacher dashboard) without full page reloads
+
 Axios	Making HTTP requests to the backend API	Simplifies API calls, supports request interceptors used to automatically attach the JWT auth token to every request
 html5-qrcode	Scanning QR codes using the device camera	Provides reliable camera access and QR decoding directly in the browser, with no native app required
 qrcode.react	Rendering QR codes on the teacher's screen	Converts the signed token string into an actual scannable QR image
