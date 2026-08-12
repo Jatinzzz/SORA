@@ -1,42 +1,46 @@
 # SORA
-smart attendance system
+System Overview
 
-**Just do it**
+The Smart Attendance System (SORA) is a full-stack web application designed to automate and secure the attendance-marking process in an educational institution, replacing manual roll-calls with a two-factor verification system combining QR codes and facial recognition.
 
-(Note: we're using localStorage here for simplicity given your timeline — it's fine for a semester project, though in a production app you'd typically use httpOnly cookies for better security. Worth mentioning in your report as a known tradeoff if you want to show awareness of it.)
----
-Quick summary
-ScenarioResultScan the QR currently on screen✅ WorksScan an old QR after a newer one has replaced it❌ Rejected — token mismatchDifferent students scanning different QR "generations" within the same session✅ Both work — session stays the same, only the token image changesSame student scanning twice (any QR)❌ Rejected — "already marked"
----
- ("face verification typically takes few seconds due to on-device CPU processing")
----
-Let's walk through this with a concrete story — imagine a professor named Mr. Sharma teaching "Computer Science - Section A" at a college, and a student named Priya in that class.
-Setting the stage — before any class ever happens
-1. Getting people into the system
-Priya and Mr. Sharma both discovered the college's new smart attendance app. Priya registers herself as a student, Mr. Sharma registers as a teacher — both accounts sit in a "pending" state, since neither can log in yet.
-2. Admin approval
-The college's IT admin logs into the Admin Dashboard, sees both pending accounts, and approves them. For Mr. Sharma (teacher), the admin optionally notes his department. For Priya (student), the admin assigns her a roll number — this is the exact moment her students profile record gets created in the database, separate from her login account.
-3. Setting up the class
-Mr. Sharma logs into his Teacher Dashboard for the first time and creates a class: "Computer Science - Section A." This becomes a permanent entity in the system — every future session for this course will belong to this one class.
-4. Enrolling Priya into that class
-Since Priya was approved without being pre-assigned to a class, she shows up under "Unassigned Students" on Mr. Sharma's dashboard. He selects her name and assigns her to "Computer Science - Section A." Now she's officially on his roster.
-5. Priya enrolls her face
-Before her first class, Priya takes a clear selfie through the app, which gets converted into a mathematical "face signature" (an embedding) and stored securely — not the photo itself, just the numeric representation of her facial features.
-The actual class day — Monday, 10 AM lecture
-6. Class happens, professor takes attendance
-At the end of his lecture, Mr. Sharma opens his dashboard, selects "Computer Science - Section A," and clicks Start Session. This creates one specific record — "CS Section A, Monday, 10 AM" — and immediately generates a QR code on his screen.
-7. Students scan in, one by one
-Priya pulls out her phone, opens the student app, and taps "Scan QR." She points her camera at the projector screen showing Mr. Sharma's QR code. The moment it's decoded, her app switches to her front camera and asks her to look into it.
-8. The anti-proxy check happens here
-Her live face capture is compared against the face signature she enrolled earlier. Since it's really her, the match succeeds, and her attendance gets recorded as present, tagged as self-verified with face_verified: true.
-9. The QR keeps refreshing — this defeats cheating
-While students are still scanning, the QR code on the projector automatically changes every 2 minutes. So if Priya had texted a screenshot of the QR to her friend Rohan (who skipped class), by the time Rohan tries to use it, that QR has likely already expired and been replaced — his scan gets rejected.
-10. The problem case — Amit forgot his phone
-Amit, another student, doesn't have his phone today, so he can't scan at all. Mr. Sharma simply finds Amit's name in the roster table on his own dashboard and clicks "Mark Present" manually. This gets recorded too, but tagged differently — marked_by: teacher_manual, face_verified: false — so the system always knows the difference between someone who proved their identity and someone the teacher vouched for.
-Handling exceptions — later that week
-11. Priya has a doctor's appointment on Wednesday
-Before Wednesday's class, she opens her Student Dashboard, clicks "Apply for Leave," writes her reason, and picks the date range. This sits as pending.
-12. Mr. Sharma reviews it
-On his dashboard, he sees Priya's leave request waiting for review, checks it, and clicks Approve. Priya can now see her request marked as approved — though as we discussed, this is currently just informational (it doesn't automatically change her attendance percentage yet — that connection is something we'd build in the scoring phase, if you decide to).
-What's tracked, and why it matters
-By the end of the semester, the attendance table has a growing, permanent record: every session Priya attended (with proof of identity), every day Amit was manually marked in, every leave Priya took. This raw data is exactly what feeds into your still-to-be-built Attendance Score feature — instead of Mr. Sharma manually tallying attendance in a notebook or spreadsheet, the system can calculate Priya's attendance percentage automatically, distinguishing genuine self-verified attendance from manual overrides, and (optionally) accounting for approved leaves.
+The system supports three roles — Admin, Teacher, and Student — each with a dedicated dashboard. Teachers create courses and start attendance sessions, which generate a secure, auto-refreshing QR code. Students scan this QR code and complete a live facial verification against their enrolled face before their attendance is recorded — ensuring that attendance can only be marked by the actual student physically present, not a proxy. The system also supports manual attendance override for exceptional cases, a leave management workflow, and automatic attendance percentage calculation per course and overall, viewable by students, teachers, and admins.
+
+Tools, Libraries & Technologies Used
+Frontend
+Tool	Purpose	Why it was used
+React.js (Vite)	Building the user interface across all three dashboards	Component-based architecture made it easy to build reusable, role-specific dashboards; Vite offers a much faster development server than older tooling
+React Router	Client-side routing and protected routes	Enables role-based navigation (e.g., redirecting students away from the teacher dashboard) without full page reloads
+Axios	Making HTTP requests to the backend API	Simplifies API calls, supports request interceptors used to automatically attach the JWT auth token to every request
+html5-qrcode	Scanning QR codes using the device camera	Provides reliable camera access and QR decoding directly in the browser, with no native app required
+qrcode.react	Rendering QR codes on the teacher's screen	Converts the signed token string into an actual scannable QR image
+Recharts	Displaying attendance data as pie charts	Gives students and teachers a clear visual breakdown of present/absent attendance
+Lucide React	Icon set used across the UI	Lightweight, consistent icon library that integrates cleanly with React
+Backend
+Tool	Purpose	Why it was used
+FastAPI (Python)	Core backend framework serving all API endpoints	Modern, high-performance framework with automatic interactive API documentation (/docs), which was used constantly for testing during development
+SQLAlchemy	Object-Relational Mapper (ORM) for database interaction	Allows database tables to be defined and queried using Python classes instead of raw SQL, reducing errors and improving maintainability
+Alembic	Database migration management	Tracks and applies schema changes (new tables/columns) in a version-controlled, repeatable way as the project evolved
+python-jose	Creating and verifying JWTs (JSON Web Tokens)	Used both for user authentication tokens and for the signed, time-limited QR attendance tokens
+passlib (bcrypt)	Password hashing	Ensures user passwords are never stored in plain text in the database
+Uvicorn	ASGI server running the FastAPI application	Required to actually run a FastAPI app; supports asynchronous request handling
+Database
+Tool	Purpose	Why it was used
+PostgreSQL	Primary relational database	Chosen for its reliability, support for complex relationships (e.g., many-to-many course enrollment), and strong data-integrity features such as unique constraints, which were used to prevent duplicate attendance records
+Neon	Cloud-hosted PostgreSQL provider	Provided a free, always-accessible database without needing local server setup, and allowed collaborators to work off the same shared data
+Machine Learning / Facial Recognition
+Tool	Purpose	Why it was used
+DeepFace	Facial recognition library	Provides a simple interface to powerful pre-trained face recognition models, avoiding the need to train a custom model from scratch
+Facenet (via DeepFace)	Generating facial embeddings	Converts a face image into a 128-dimension numeric vector, which can be mathematically compared to determine identity
+MTCNN (via DeepFace)	Face detection	Locates and crops the face within an image before recognition; switched to from the default detector after testing revealed it handled real-world lighting/angle conditions far more reliably
+OpenCV (cv2)	Image processing	Used to read and decode uploaded/captured images into a format usable by the recognition pipeline
+NumPy	Numerical computation	Used to calculate cosine similarity between two facial embeddings to determine whether they match
+TensorFlow	Underlying deep learning framework	Powers the neural networks used internally by DeepFace's detection and recognition models
+Authentication & Security
+Tool	Purpose	Why it was used
+JWT (JSON Web Tokens)	Session authentication and QR code signing	Stateless, secure way to verify both logged-in users and scanned QR codes without needing a server-side session store
+Role-Based Access Control (custom FastAPI dependencies)	Restricting endpoints by user role	Ensures, for example, that only teachers can generate QR codes and only admins can approve teacher accounts
+Development & Deployment Tools
+Tool	Purpose	Why it was used
+Git & GitHub	Version control and collaboration	Enabled multiple collaborators to work on the project simultaneously and track changes over time
+Postman / FastAPI's built-in /docs	API testing	Used extensively to test backend endpoints independently of the frontend during development
+ngrok	Temporary HTTPS tunneling for mobile testing	Allowed camera-dependent features (QR scanning, face capture) to be tested on real mobile devices before full deployment, since browsers require HTTPS for camera access
